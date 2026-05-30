@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8"/>
+  <title>SIXsPlugins — Pagina non trovata</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <!-- Redirect alla home con hash per mantenere la route -->
+  <script>
+    // Preserva il path come hash per il router lato client
+    const path = window.location.pathname;
+    const search = window.location.search;
+    // Reindirizza alla root mantenendo il percorso come hash
+    window.location.replace(
+      window.location.origin + '/' +
+      (search ? '?' + search.slice(1) + '&' : '?') +
+      'redirect=' + encodeURIComponent(path)
+    );
+  </script>
+  <style>
+    body { background: #0d0f14; color: #e2e8f0; font-family: sans-serif;
+           display: flex; align-items: center; justify-content: center;
+           min-height: 100vh; margin: 0; text-align: center; }
+    p { color: #64748b; font-size: 14px; margin-top: .5rem; }
+    a { color: #fb923c; }
+  </style>
+</head>
+<body>
+  <div>
+    <div style="font-size:48px;margin-bottom:1rem">🧱</div>
+    <h2 style="font-family:monospace;color:#fb923c">404</h2>
+    <p>Pagina non trovata — <a href="/">torna alla home</a></p>
+  </div>
+</body>
+</html>
