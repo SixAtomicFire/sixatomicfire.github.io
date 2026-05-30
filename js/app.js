@@ -1,6 +1,6 @@
 /* ══════════════════════════════════════
    SIXsPlugins — app.js
-   Routing, auth, search, tickets, admin
+   Routing, auth, search, ticket, admin
    ══════════════════════════════════════ */
 
 /* ── ROUTER ─────────────────────────────────────────────────────────────── */
@@ -28,10 +28,9 @@ const SiteRouter = (() => {
 const Auth = (() => {
   const STORAGE_KEY = 'six_user';
 
-  // Demo users (in produzione vengono dal backend)
   const DEMO_USERS = [
-    { username: 'Steve99',   email: 'steve99@mc.net',      password: 'demo123' },
-    { username: 'Alex_MC',   email: 'alex@example.com',    password: 'demo123' },
+    { username: 'Steve99',  email: 'steve99@mc.net',   password: 'demo123' },
+    { username: 'Alex_MC',  email: 'alex@example.com', password: 'demo123' },
   ];
 
   let _current = null;
@@ -76,7 +75,7 @@ const Auth = (() => {
   }
 
   function isLoggedIn() { return !!_current; }
-  function user() { return _current; }
+  function user()       { return _current; }
 
   function updateNavUser() {
     const btn = document.getElementById('nav-user-btn');
@@ -85,6 +84,11 @@ const Auth = (() => {
       btn.textContent = '👤 ' + _current.username;
       btn.classList.add('logged-in');
       btn.onclick = () => UserMenu.toggle();
+      // Aggiorna nome/email nel dropdown
+      const n = document.getElementById('um-name');
+      const e = document.getElementById('um-email');
+      if (n) n.textContent = _current.username;
+      if (e) e.textContent = _current.email;
     } else {
       btn.textContent = '🔑 Accedi';
       btn.classList.remove('logged-in');
@@ -101,6 +105,13 @@ const AuthModal = (() => {
     document.getElementById('modal-auth').classList.add('open');
     switchTab(tab);
     clearErrors();
+    // Focus sul primo campo
+    setTimeout(() => {
+      const first = document.getElementById(
+        tab === 'login' ? 'login-identifier' : 'reg-username'
+      );
+      if (first) first.focus();
+    }, 60);
   }
 
   function close() {
@@ -113,6 +124,7 @@ const AuthModal = (() => {
     document.querySelectorAll('.auth-panel').forEach(p => p.style.display = 'none');
     document.getElementById('auth-tab-' + tab).classList.add('active');
     document.getElementById('auth-panel-' + tab).style.display = 'block';
+    clearErrors();
   }
 
   function clearErrors() {
@@ -133,12 +145,15 @@ const AuthModal = (() => {
   }
 
   function doRegister() {
-    const user = document.getElementById('reg-username').value.trim();
-    const email= document.getElementById('reg-email').value.trim();
-    const pwd  = document.getElementById('reg-password').value;
-    const err  = document.getElementById('reg-error');
+    const user  = document.getElementById('reg-username').value.trim();
+    const email = document.getElementById('reg-email').value.trim();
+    const pwd   = document.getElementById('reg-password').value;
+    const err   = document.getElementById('reg-error');
     if (!user || !email || !pwd) { showError(err, 'Compila tutti i campi.'); return; }
     if (pwd.length < 6) { showError(err, 'Password minima 6 caratteri.'); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      showError(err, 'Email non valida.'); return;
+    }
     if (Auth.register(user, email, pwd)) {
       close();
       showToast('✓ Account creato! Benvenuto, ' + user + '!');
@@ -168,7 +183,8 @@ const UserMenu = (() => {
   function goMyTickets() {
     close();
     if (!Auth.isLoggedIn()) { AuthModal.open('login'); return; }
-    buildMyTickets();
+    // FIX: era buildMyTickets() (inesistente) → MyTickets.build()
+    MyTickets.build();
     SiteRouter.goPage('my-tickets', -1);
   }
 
@@ -177,14 +193,13 @@ const UserMenu = (() => {
 
 /* ── MY TICKETS ──────────────────────────────────────────────────────────── */
 const MyTickets = (() => {
-  // Demo ticket data per utente loggato
   const DEMO = {
     'Steve99': [
-      { id:'#0042', plugin:'ShopEasy',   title:'Prezzi non si aggiornano su /reload', status:'open', date:'2h fa',      priority:'Media' },
-      { id:'#0039', plugin:'CombatCore', title:'Cooldown non funziona con Velocity',  status:'closed', date:'5 giorni fa', priority:'Alta' },
+      { id:'#0042', plugin:'ShopEasy',   title:'Prezzi non si aggiornano su /reload', status:'open',   date:'2h fa',      priority:'Media' },
+      { id:'#0039', plugin:'CombatCore', title:'Cooldown non funziona con Velocity',  status:'closed', date:'5 giorni fa', priority:'Alta'  },
     ],
     'Alex_MC': [
-      { id:'#0043', plugin:'ShopEasy',   title:'GUI non si apre dopo /reload',        status:'open', date:'1h fa',      priority:'Media' },
+      { id:'#0043', plugin:'ShopEasy',   title:'GUI non si apre dopo /reload',        status:'open',   date:'1h fa',       priority:'Media' },
     ],
   };
 
@@ -201,7 +216,8 @@ const MyTickets = (() => {
           <div class="empty-state-icon">🎫</div>
           <h3>Nessun ticket aperto</h3>
           <p>Non hai ancora aperto nessun ticket.<br>Se hai un problema, aprine uno!</p>
-          <button class="btn-primary" style="margin-top:1.25rem" onclick="SiteRouter.goPage('ticket',2)">
+          <button class="btn-primary" style="margin-top:1.25rem"
+            onclick="SiteRouter.goPage('ticket',2)">
             Apri il primo ticket
           </button>
         </div>`;
@@ -220,10 +236,12 @@ const MyTickets = (() => {
       </div>`).join('');
   }
 
-  function statusLabel(s) { return s === 'open' ? 'Aperto' : s === 'wip' ? 'In corso' : 'Chiuso'; }
+  function statusLabel(s) {
+    return s === 'open' ? 'Aperto' : s === 'wip' ? 'In corso' : 'Chiuso';
+  }
   function statusStyle(s) {
-    if (s === 'open')   return 'background:var(--orange-dim);color:var(--orange)';
-    if (s === 'wip')    return 'background:var(--amber-dim);color:var(--amber)';
+    if (s === 'open') return 'background:var(--orange-dim);color:var(--orange)';
+    if (s === 'wip')  return 'background:var(--amber-dim);color:var(--amber)';
     return 'background:rgba(100,116,139,.15);color:var(--muted)';
   }
 
@@ -232,14 +250,14 @@ const MyTickets = (() => {
 
 /* ── SEARCH ──────────────────────────────────────────────────────────────── */
 const Search = (() => {
-  // Static searchable items beyond plugins
   const STATIC = [
-    { type:'page', icon:'🎫', title:'Apri un Ticket', sub:'Segnala un problema', tag:'Pagina', tagClass:'tag-o', action: () => SiteRouter.goPage('ticket', 2) },
-    { type:'page', icon:'📖', title:'Documentazione', sub:'Guide per tutti i plugin', tag:'Pagina', tagClass:'tag-o', action: () => SiteRouter.goPage('docs', 1) },
-    { type:'page', icon:'🏠', title:'Home',            sub:'Torna alla pagina principale', tag:'Pagina', tagClass:'tag-o', action: () => SiteRouter.goPage('home', 0) },
+    { type:'page', icon:'🎫', title:'Apri un Ticket',  sub:'Segnala un problema',          tag:'Pagina', tagClass:'tag-o', action: () => SiteRouter.goPage('ticket', 2) },
+    { type:'page', icon:'📖', title:'Documentazione',  sub:'Guide per tutti i plugin',     tag:'Pagina', tagClass:'tag-o', action: () => SiteRouter.goPage('docs', 1)   },
+    { type:'page', icon:'🏠', title:'Home',             sub:'Torna alla pagina principale', tag:'Pagina', tagClass:'tag-o', action: () => SiteRouter.goPage('home', 0)   },
   ];
 
   let _debounce = null;
+  let _results  = [];
 
   function open() {
     document.getElementById('search-overlay').classList.add('open');
@@ -250,23 +268,24 @@ const Search = (() => {
     document.getElementById('search-overlay').classList.remove('open');
     const inp = document.getElementById('search-input');
     if (inp) inp.value = '';
-    render([]);
+    _render([]);
   }
 
   function onInput(val) {
     clearTimeout(_debounce);
     _debounce = setTimeout(() => {
-      if (!val || val.length < 2) { render([]); return; }
+      if (!val || val.length < 2) { _render([]); return; }
       const pluginResults = PluginSystem.search(val);
       const staticResults = STATIC.filter(s =>
         s.title.toLowerCase().includes(val.toLowerCase()) ||
         s.sub.toLowerCase().includes(val.toLowerCase())
       );
-      render([...pluginResults, ...staticResults]);
+      _render([...pluginResults, ...staticResults]);
     }, 120);
   }
 
-  function render(results) {
+  function _render(results) {
+    _results = results;
     const cont = document.getElementById('search-results');
     if (!cont) return;
 
@@ -278,7 +297,6 @@ const Search = (() => {
       return;
     }
 
-    // Group by type
     const groups = {};
     results.forEach(r => {
       if (!groups[r.type]) groups[r.type] = [];
@@ -289,27 +307,27 @@ const Search = (() => {
 
     cont.innerHTML = Object.entries(groups).map(([type, items]) => `
       <div class="search-section-label">${typeLabel[type] || type}</div>
-      ${items.map(item => `
-        <div class="search-result-item" onclick="Search._pick(${results.indexOf(item)})">
-          <div class="search-result-icon">${item.icon}</div>
-          <div class="search-result-info">
-            <div class="search-result-title">${item.title}</div>
-            <div class="search-result-sub">${item.sub}</div>
-          </div>
-          <span class="search-result-tag tag ${item.tagClass}">${item.tag}</span>
-        </div>`).join('')}
+      ${items.map(item => {
+        const idx = results.indexOf(item);
+        return `
+          <div class="search-result-item" onclick="Search.pick(${idx})">
+            <div class="search-result-icon">${item.icon}</div>
+            <div class="search-result-info">
+              <div class="search-result-title">${item.title}</div>
+              <div class="search-result-sub">${item.sub}</div>
+            </div>
+            <span class="search-result-tag tag ${item.tagClass}">${item.tag}</span>
+          </div>`;
+      }).join('')}
     `).join('');
-
-    // Store for pick
-    Search._results = results;
   }
 
-  function _pick(idx) {
-    const r = Search._results?.[idx];
+  function pick(idx) {
+    const r = _results[idx];
     if (r) { close(); r.action(); }
   }
 
-  return { open, close, onInput, render, _pick, _results: [] };
+  return { open, close, onInput, pick };
 })();
 
 /* ── TICKET FORM ─────────────────────────────────────────────────────────── */
@@ -323,7 +341,7 @@ const TicketForm = (() => {
 
   function handleFiles(input) {
     const newFiles = Array.from(input.files);
-    _files = [..._files, ...newFiles].slice(0, 5); // max 5 allegati
+    _files = [..._files, ...newFiles].slice(0, 5);
     renderFileList();
   }
 
@@ -339,7 +357,9 @@ const TicketForm = (() => {
       <div class="file-item">
         <span style="font-size:14px">${fileIcon(f.name)}</span>
         <span class="file-item-name">${f.name}</span>
-        <span style="font-size:11px;color:var(--muted);font-family:var(--mono);flex-shrink:0">${fmtSize(f.size)}</span>
+        <span style="font-size:11px;color:var(--muted);font-family:var(--mono);flex-shrink:0">
+          ${fmtSize(f.size)}
+        </span>
         <button class="file-item-remove" onclick="TicketForm.removeFile(${i})">✕</button>
       </div>`).join('');
   }
@@ -359,19 +379,30 @@ const TicketForm = (() => {
   }
 
   function submit() {
+    // FIX: aggiunto controllo sul campo username
+    const userField = document.getElementById('ticket-user')?.value.trim();
     const plugin = document.getElementById('ticket-plugin-sel')?.value;
     const title  = document.getElementById('ticket-title')?.value.trim();
     const desc   = document.getElementById('ticket-desc')?.value.trim();
 
+    if (!userField) { showToast('⚠️ Inserisci il tuo username o email.'); return; }
     if (!plugin || plugin.startsWith('—')) { showToast('⚠️ Seleziona un plugin.'); return; }
     if (!title)  { showToast('⚠️ Inserisci un titolo.'); return; }
     if (!desc)   { showToast('⚠️ Inserisci una descrizione.'); return; }
 
-    // Reset form
+    // Reset form completo
+    document.getElementById('ticket-user').value  = '';
     document.getElementById('ticket-title').value = '';
     document.getElementById('ticket-desc').value  = '';
+    document.getElementById('ticket-plugin-sel').selectedIndex = 0;
+
+    // FIX: reset anche il file input nel DOM
+    const fileInput = document.querySelector('.file-upload-area input[type=file]');
+    if (fileInput) fileInput.value = '';
     _files = [];
     renderFileList();
+
+    // Reset priorità
     document.querySelectorAll('.prio-btn').forEach(b => b.className = 'prio-btn');
     document.querySelector('.prio-btn')?.classList.add('sel-l');
 
@@ -383,34 +414,39 @@ const TicketForm = (() => {
 
 /* ── ADMIN ───────────────────────────────────────────────────────────────── */
 const Admin = (() => {
+  let _pluginsReady = false;
+
   function showLogin() {
-    document.getElementById('public-site').style.display   = 'none';
-    document.getElementById('admin-login').style.display   = '';
-    document.getElementById('admin-shell').style.display   = 'none';
+    document.getElementById('public-site').style.display  = 'none';
+    document.getElementById('admin-login').style.display  = '';
+    document.getElementById('admin-shell').style.display  = 'none';
+    setTimeout(() => document.getElementById('l-user')?.focus(), 60);
   }
 
   function showShell() {
-    document.getElementById('public-site').style.display   = 'none';
-    document.getElementById('admin-login').style.display   = 'none';
-    document.getElementById('admin-shell').style.display   = 'flex';
+    document.getElementById('public-site').style.display  = 'none';
+    document.getElementById('admin-login').style.display  = 'none';
+    document.getElementById('admin-shell').style.display  = 'flex';
     buildCharts();
-    PluginSystem.buildAdminPluginsTable();
-    PluginSystem.buildAdminDlTable();
-    PluginSystem.buildStatsDlTable();
-    PluginSystem.updateHomeStats();
+    // FIX: ricostruisce le tabelle solo se i plugin sono già caricati
+    if (PluginSystem.getAll().length > 0) {
+      PluginSystem.buildAdminPluginsTable();
+      PluginSystem.buildAdminDlTable();
+      PluginSystem.buildStatsDlTable();
+      PluginSystem.updateHomeStats();
+    }
   }
 
   function showPublic() {
-    document.getElementById('public-site').style.display   = '';
-    document.getElementById('admin-login').style.display   = 'none';
-    document.getElementById('admin-shell').style.display   = 'none';
+    document.getElementById('public-site').style.display  = '';
+    document.getElementById('admin-login').style.display  = 'none';
+    document.getElementById('admin-shell').style.display  = 'none';
   }
 
   function doLogin() {
-    const u = document.getElementById('l-user').value.trim();
-    const p = document.getElementById('l-pass').value;
+    const u   = document.getElementById('l-user').value.trim();
+    const p   = document.getElementById('l-pass').value;
     const err = document.getElementById('login-err');
-    // In produzione: chiamata API al backend
     if (u === 'admin' && p === 'admin123') {
       err.style.display = 'none';
       sessionStorage.setItem('six_admin', '1');
@@ -450,10 +486,12 @@ const Admin = (() => {
   function changeStatus(btn, st) {
     const map = { open:'Aperto', wip:'In corso', closed:'Chiuso' };
     const dot = { open:'sdot-open', wip:'sdot-wip', closed:'sdot-closed' };
-    const tr = btn.closest('tr');
-    const sdot = tr.querySelector('.sdot');
+    const tr  = btn.closest('tr');
+    // FIX: usa data attribute invece dell'indice fisso [5]
+    const sdot   = tr.querySelector('.sdot');
+    const statoTd = tr.querySelector('td[data-col="stato"]');
     if (sdot) sdot.className = 'sdot ' + dot[st];
-    tr.querySelectorAll('td')[5].innerHTML = `<span class="sdot ${dot[st]}"></span>${map[st]}`;
+    if (statoTd) statoTd.innerHTML = `<span class="sdot ${dot[st]}"></span>${map[st]}`;
     tr.dataset.status = st;
     showToast('Stato aggiornato: ' + map[st]);
   }
@@ -463,13 +501,16 @@ const Admin = (() => {
 
   function openTicketDetail(user, plugin, title, status) {
     const map = { open:'Aperto', wip:'In corso', closed:'Chiuso' };
-    document.getElementById('mt-title').textContent   = 'Ticket — ' + user;
-    document.getElementById('mt-plugin').textContent  = plugin;
-    document.getElementById('mt-status').textContent  = map[status] || status;
-    document.getElementById('mt-desc').textContent    = `L'utente ${user} ha segnalato: "${title}"`;
-    document.getElementById('cp-title').textContent   = 'Chat live · ' + user;
-    document.getElementById('cp-msgs').innerHTML      =
-      `<div class="cp-msg-user"><div class="cp-bubble">Ciao, ho un problema con ${plugin}...</div><div class="cp-time">${user} · adesso</div></div>`;
+    document.getElementById('mt-title').textContent  = 'Ticket — ' + user;
+    document.getElementById('mt-plugin').textContent = plugin;
+    document.getElementById('mt-status').textContent = map[status] || status;
+    document.getElementById('mt-desc').textContent   = `L'utente ${user} ha segnalato: "${title}"`;
+    document.getElementById('cp-title').textContent  = 'Chat live · ' + user;
+    document.getElementById('cp-msgs').innerHTML     =
+      `<div class="cp-msg-user">
+         <div class="cp-bubble">Ciao, ho un problema con ${plugin}...</div>
+         <div class="cp-time">${user} · adesso</div>
+       </div>`;
     _chatOpen = false;
     document.getElementById('chat-panel-wrap').style.display = 'none';
     document.getElementById('chat-toggle-btn').textContent   = 'Abilita Chat';
@@ -499,9 +540,14 @@ const Admin = (() => {
     const inp = document.getElementById('cp-inp');
     const txt = inp.value.trim();
     if (!txt) return;
-    const m = document.getElementById('cp-msgs');
+    const m   = document.getElementById('cp-msgs');
     const now = new Date().toLocaleTimeString('it', { hour: '2-digit', minute: '2-digit' });
-    m.innerHTML += `<div class="cp-msg-admin"><div class="cp-bubble">${txt}</div><div class="cp-time">admin · ${now}</div></div>`;
+    // FIX: sanitizza il testo prima di inserirlo nel DOM
+    const div = document.createElement('div');
+    div.className = 'cp-msg-admin';
+    div.innerHTML = `<div class="cp-bubble"></div><div class="cp-time">admin · ${now}</div>`;
+    div.querySelector('.cp-bubble').textContent = txt;
+    m.appendChild(div);
     inp.value = '';
     m.scrollTop = m.scrollHeight;
   }
@@ -523,7 +569,6 @@ const Admin = (() => {
     makeBar('bar-monthly', monthly);
   }
 
-  // ── Route check ──
   function checkRoute() {
     if (location.hash === '#/admin') {
       if (sessionStorage.getItem('six_admin')) showShell();
@@ -551,42 +596,43 @@ function showToast(msg) {
 
 /* ── KEYBOARD SHORTCUTS ──────────────────────────────────────────────────── */
 document.addEventListener('keydown', e => {
-  // Cmd/Ctrl+K → search
   if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
     e.preventDefault();
     Search.open();
   }
-  // Esc → close overlays
   if (e.key === 'Escape') {
-    Search.close();
-    UserMenu.close();
-    document.querySelectorAll('.modal-bg.open').forEach(m => m.classList.remove('open'));
+    // FIX: chiude solo il modal più in cima (l'ultimo aperto), non tutti
+    const openModals = [...document.querySelectorAll('.modal-bg.open')];
+    if (openModals.length) {
+      openModals[openModals.length - 1].classList.remove('open');
+    } else {
+      Search.close();
+      UserMenu.close();
+    }
   }
 });
 
-// Close user menu on outside click
+// Chiudi user menu su click esterno
 document.addEventListener('click', e => {
   const wrap = document.getElementById('user-menu-wrap');
   if (wrap && !wrap.contains(e.target)) UserMenu.close();
 });
 
-// Close search on backdrop click
+// Chiudi search su click sul backdrop
 document.getElementById('search-overlay')?.addEventListener('click', e => {
   if (e.target.id === 'search-overlay') Search.close();
 });
 
 /* ── BOOT ────────────────────────────────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', async () => {
-  // Load auth state
   Auth.load();
   Auth.updateNavUser();
 
-  // Load plugins from JSON files
+  // Carica i plugin (await: tutto dipende da questo)
   await PluginSystem.init();
 
-  // Check if on admin route
+  // Ora che i plugin sono caricati, controlla la route
+  // FIX: checkRoute DOPO init() per evitare race condition admin/tabelle
   Admin.checkRoute();
-
-  // Hash change (back button etc.)
   window.addEventListener('hashchange', Admin.checkRoute);
 });
