@@ -11,19 +11,38 @@ const PluginSystem = (() => {
   let _currentPlugin = null;
   let _currentSection = 'overview';
 
+  // ── Base URL (fix percorso relativo su GitHub Pages) ───────────────────
+  // Rileva automaticamente il base path del sito.
+  // Es: su sixatomicfire.github.io/ → ''
+  //     su sixatomicfire.github.io/sixsplugins/ → '/sixsplugins'
+  const BASE = (() => {
+    const scripts = document.querySelectorAll('script[src]');
+    for (const s of scripts) {
+      const m = s.src.match(/^(.*?)\/js\/plugins\.js$/);
+      if (m) return m[1].replace(window.location.origin, '');
+    }
+    return '';
+  })();
+
+  function pluginUrl(path) {
+    return `${BASE}/${path}`.replace(/\/\//g, '/');
+  }
+
   // ── Loader ─────────────────────────────────────────────────────────────
 
-  /**
-   * Carica index.json poi ogni plugin JSON.
-   * Restituisce la lista di plugin pronti.
-   */
   async function loadAll() {
     try {
-      const idxRes = await fetch('plugins/index.json');
+      const idxRes = await fetch(pluginUrl('plugins/index.json'));
+      if (!idxRes.ok) throw new Error('index.json non trovato');
       const idx = await idxRes.json();
 
       const results = await Promise.allSettled(
-        idx.plugins.map(id => fetch(`plugins/${id}.json`).then(r => r.json()))
+        idx.plugins.map(id =>
+          fetch(pluginUrl(`plugins/${id}.json`)).then(r => {
+            if (!r.ok) throw new Error(`${id}.json non trovato`);
+            return r.json();
+          })
+        )
       );
 
       _plugins = results
@@ -31,27 +50,30 @@ const PluginSystem = (() => {
         .map(r => r.value)
         .filter(p => p.visible !== false);
 
-      // Fetch download counts from Modrinth for plugins that have a modrinthId
       await fetchDownloads();
-
       return _plugins;
     } catch (err) {
       console.error('[PluginSystem] Errore caricamento plugin:', err);
+      _showLoadError();
       return [];
     }
   }
 
-  /**
-   * Recupera i download da Modrinth per i plugin con modrinthId.
-   * In produzione questo va proxato lato server per evitare CORS.
-   * Per ora usiamo dati mock con possibilità di fetch reale.
-   */
-  async function fetchDownloads() {
-    const MOCK = {
-      'AANobbyd': 12480,
-    };
+  function _showLoadError() {
+    const list = document.getElementById('home-plugin-list');
+    if (list) list.innerHTML = `
+      <div style="padding:2rem;text-align:center;color:var(--muted);font-size:13px">
+        ⚠️ Impossibile caricare i plugin. Controlla la connessione e riprova.
+      </div>`;
+    const grid = document.getElementById('docs-grid');
+    if (grid) grid.innerHTML = `
+      <div style="padding:2rem;color:var(--muted);font-size:13px">
+        ⚠️ Impossibile caricare la documentazione.
+      </div>`;
+  }
 
-    // Fallback download numbers per i plugin senza modrinthId
+  async function fetchDownloads() {
+    const MOCK = { 'AANobbyd': 12480 };
     const FALLBACK = [8320, 21050, 5640, 9870, 3210, 6780, 14330, 4120, 7890, 11200];
     let fallbackIdx = 0;
 
@@ -59,7 +81,6 @@ const PluginSystem = (() => {
       if (p.modrinthId && MOCK[p.modrinthId] !== undefined) {
         p.downloads = MOCK[p.modrinthId];
       } else if (p.modrinthId) {
-        // Tentativo di fetch reale (funziona se il server ha CORS o proxy)
         try {
           const res = await fetch(`https://api.modrinth.com/v2/project/${p.modrinthId}`, {
             headers: { 'User-Agent': 'SIXsPlugins-Site/1.0' }
@@ -86,21 +107,26 @@ const PluginSystem = (() => {
     return n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(n);
   }
 
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
   function totalDownloads() {
     return _plugins.reduce((s, p) => s + (p.downloads || 0), 0);
   }
 
-  function getAll() { return _plugins; }
-
+  function getAll()    { return _plugins; }
   function getById(id) { return _plugins.find(p => p.id === id); }
 
   // ── Content renderer ───────────────────────────────────────────────────
 
-  /**
-   * Trasforma un array di blocchi content (dal JSON) in HTML.
-   */
   function renderContent(blocks) {
-    if (!blocks || !blocks.length) return '<p class="doc-p">Nessun contenuto disponibile.</p>';
+    if (!blocks || !blocks.length)
+      return '<p class="doc-p">Nessun contenuto disponibile.</p>';
 
     return blocks.map(block => {
       switch (block.type) {
@@ -119,26 +145,34 @@ const PluginSystem = (() => {
             <strong>${block.title || ''}</strong>${block.text}
           </div>`;
 
-        case 'code':
+        // FIX: blocchi separati con {} per evitare SyntaxError con const in switch
+        case 'code': {
           const lines = (block.lines || []).map(l => {
-            const comment = l.comment ? ` <span class="cm">  # ${l.comment}</span>` : '';
-            const cls = l.type === 'key' ? 'ck' : l.type === 'value' ? 'cv' : l.type === 'string' ? 'cs' : '';
+            const comment = l.comment
+              ? ` <span class="cm">  # ${l.comment}</span>`
+              : '';
+            const cls = l.type === 'key'   ? 'ck'
+                      : l.type === 'value' ? 'cv'
+                      : l.type === 'string'? 'cs' : '';
             return cls
               ? `<span class="${cls}">${l.text}</span>${comment}`
               : `${l.text}${comment}`;
           }).join('\n');
           return `<div class="doc-code">${lines}</div>`;
+        }
 
-        case 'table':
+        case 'table': {
           const headers = (block.headers || []).map(h => `<th>${h}</th>`).join('');
           const rows = (block.rows || []).map(row =>
             `<tr>${row.map(cell => `<td>${cell}</td>`).join('')}</tr>`
           ).join('');
           return `<table class="doc-table"><tr>${headers}</tr>${rows}</table>`;
+        }
 
-        case 'list':
+        case 'list': {
           const items = (block.items || []).map(i => `• ${i}`).join('<br>');
           return `<p class="doc-p">${items}</p>`;
+        }
 
         case 'faq':
           return (block.items || []).map(item => `
@@ -153,14 +187,17 @@ const PluginSystem = (() => {
         case 'changelog':
           return (block.entries || []).map(entry => `
             <div class="changelog-item">
-              <div class="changelog-ver">${entry.version}</div>
-              <div class="changelog-date">${entry.date}</div>
-              ${(entry.changes || []).map(c => `<div class="changelog-entry">${c}</div>`).join('')}
+              <div class="changelog-ver">${escHtml(entry.version)}</div>
+              <div class="changelog-date">${escHtml(entry.date)}</div>
+              ${(entry.changes || []).map(c =>
+                `<div class="changelog-entry">${escHtml(c)}</div>`
+              ).join('')}
             </div>`).join('');
 
         case 'modrinth':
           return block.id
-            ? `<a class="modrinth-badge" href="https://modrinth.com/plugin/${block.id}" target="_blank">⬇ Scarica su Modrinth</a>`
+            ? `<a class="modrinth-badge" href="https://modrinth.com/plugin/${escHtml(block.id)}"
+                 target="_blank" rel="noopener">⬇ Scarica su Modrinth</a>`
             : '';
 
         default:
@@ -174,35 +211,37 @@ const PluginSystem = (() => {
   function buildHomePlugins() {
     const cont = document.getElementById('home-plugin-list');
     if (!cont) return;
-
     cont.innerHTML = _plugins.map(p => `
-      <div class="plugin-row" onclick="PluginSystem.openDoc('${p.id}')">
+      <div class="plugin-row" onclick="PluginSystem.openDoc('${escHtml(p.id)}')">
         <div class="plugin-row-icon">${p.icon}</div>
         <div class="plugin-row-info">
-          <div class="plugin-row-name">${p.name}</div>
-          <div class="plugin-row-desc">${p.description}</div>
+          <div class="plugin-row-name">${escHtml(p.name)}</div>
+          <div class="plugin-row-desc">${escHtml(p.description)}</div>
         </div>
         <div class="plugin-row-right">
           <div class="plugin-row-tags">
-            <span class="tag tag-o">${p.version}</span>
-            <span class="tag ${p.categoryTag}">${p.category}</span>
+            <span class="tag tag-o">${escHtml(p.version)}</span>
+            <span class="tag ${escHtml(p.categoryTag)}">${escHtml(p.category)}</span>
           </div>
           <div class="dl-count">⬇ <span>${fmtNum(p.downloads)}</span> download</div>
         </div>
       </div>`).join('');
+
+    // Aggiorna contatore e label
+    const countEl = document.getElementById('home-plugin-count');
+    if (countEl) countEl.textContent = _plugins.length;
+    const labelEl = document.getElementById('home-plugin-label');
+    if (labelEl) labelEl.textContent = `${_plugins.length} plugin · tutti aggiornati`;
   }
 
   // ── Stats bar ──────────────────────────────────────────────────────────
 
   function updateHomeStats() {
-    const el = document.getElementById('home-total-dl');
-    if (el) el.textContent = fmtNum(totalDownloads());
-
-    const adminEl = document.getElementById('adm-dl-total');
-    if (adminEl) adminEl.textContent = fmtNum(totalDownloads());
-
-    const statsEl = document.getElementById('stats-dl-val');
-    if (statsEl) statsEl.textContent = fmtNum(totalDownloads());
+    const tot = fmtNum(totalDownloads());
+    ['home-total-dl', 'adm-dl-total', 'stats-dl-val'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = tot;
+    });
   }
 
   // ── Docs grid ──────────────────────────────────────────────────────────
@@ -210,17 +249,16 @@ const PluginSystem = (() => {
   function buildDocsGrid() {
     const cont = document.getElementById('docs-grid');
     if (!cont) return;
-
     cont.innerHTML = _plugins.map(p => `
-      <div class="doc-card" onclick="PluginSystem.openDoc('${p.id}')">
+      <div class="doc-card" onclick="PluginSystem.openDoc('${escHtml(p.id)}')">
         <div class="doc-head">
           <div class="doc-icon">${p.icon}</div>
           <div>
-            <div class="doc-name">${p.name}</div>
-            <div class="doc-ver">${p.version}</div>
+            <div class="doc-name">${escHtml(p.name)}</div>
+            <div class="doc-ver">${escHtml(p.version)}</div>
           </div>
         </div>
-        <div class="doc-desc">${p.description}</div>
+        <div class="doc-desc">${escHtml(p.description)}</div>
         <div class="doc-meta">
           <div class="doc-dl">⬇ <span>${fmtNum(p.downloads)}</span> download</div>
           <div class="doc-arrow">Leggi docs →</div>
@@ -233,9 +271,12 @@ const PluginSystem = (() => {
   function buildTicketSelect() {
     const sel = document.getElementById('ticket-plugin-sel');
     if (!sel) return;
+    // Rimuovi opzioni precedenti (tranne il placeholder)
+    while (sel.options.length > 1) sel.remove(1);
     _plugins.forEach(p => {
       const o = document.createElement('option');
       o.textContent = p.name;
+      o.value = p.id;
       sel.appendChild(o);
     });
   }
@@ -248,11 +289,11 @@ const PluginSystem = (() => {
     const openTickets = { shopeasy: 2, antigriefpro: 1 };
     t.innerHTML = `<tr>
       <th>Plugin</th><th>Versione</th><th>Categoria</th>
-      <th>Download Modrinth</th><th>Ticket aperti</th><th>Stato</th><th>Azioni</th>
+      <th>Download</th><th>Ticket aperti</th><th>Stato</th><th>Azioni</th>
     </tr>` + _plugins.map(p => `<tr>
-      <td><strong>${p.icon} ${p.name}</strong></td>
-      <td style="font-family:var(--mono);font-size:11px">${p.version}</td>
-      <td><span class="tag ${p.categoryTag}">${p.category}</span></td>
+      <td><strong>${p.icon} ${escHtml(p.name)}</strong></td>
+      <td style="font-family:var(--mono);font-size:11px">${escHtml(p.version)}</td>
+      <td><span class="tag ${escHtml(p.categoryTag)}">${escHtml(p.category)}</span></td>
       <td style="font-family:var(--mono);color:var(--orange)">${fmtNum(p.downloads)}</td>
       <td>${openTickets[p.id] || 0}</td>
       <td><span class="sdot sdot-online"></span>Visibile</td>
@@ -270,8 +311,8 @@ const PluginSystem = (() => {
     t.innerHTML = `<tr>
       <th>Plugin</th><th>Versione</th><th>Download</th><th>Ticket aperti</th><th>Stato</th>
     </tr>` + _plugins.map(p => `<tr>
-      <td>${p.icon} ${p.name}</td>
-      <td style="font-family:var(--mono);font-size:11px">${p.version}</td>
+      <td>${p.icon} ${escHtml(p.name)}</td>
+      <td style="font-family:var(--mono);font-size:11px">${escHtml(p.version)}</td>
       <td style="font-family:var(--mono);color:var(--orange)">${fmtNum(p.downloads)}</td>
       <td>${openTickets[p.id] || 0}</td>
       <td><span class="sdot sdot-online"></span>Online</td>
@@ -284,34 +325,28 @@ const PluginSystem = (() => {
     const total = totalDownloads();
     t.innerHTML = `<tr><th>Plugin</th><th>Download</th><th>% totale</th></tr>` +
       _plugins.map(p => `<tr>
-        <td>${p.icon} ${p.name}</td>
+        <td>${p.icon} ${escHtml(p.name)}</td>
         <td style="font-family:var(--mono);color:var(--orange)">${fmtNum(p.downloads)}</td>
         <td style="color:var(--muted)">${total ? Math.round((p.downloads / total) * 100) + '%' : '—'}</td>
       </tr>`).join('');
   }
 
-  function buildAddPluginSelect() {
-    const sel = document.getElementById('modal-plugin-cat');
-    // already static in HTML
-  }
+  // ── Search ─────────────────────────────────────────────────────────────
 
-  // ── Search index ───────────────────────────────────────────────────────
-
-  /**
-   * Restituisce risultati di ricerca per query q.
-   * Cerca in nome, descrizione, categoria, e titoli sezioni docs.
-   */
   function search(q) {
     if (!q || q.length < 2) return [];
     const lq = q.toLowerCase();
     const results = [];
+    const seen = new Set();
 
     for (const p of _plugins) {
       const nameMatch = p.name.toLowerCase().includes(lq);
       const descMatch = p.description.toLowerCase().includes(lq);
       const catMatch  = p.category.toLowerCase().includes(lq);
 
-      if (nameMatch || descMatch || catMatch) {
+      // FIX: dedup con Set per evitare risultati doppi
+      if ((nameMatch || descMatch || catMatch) && !seen.has(`plugin:${p.id}`)) {
+        seen.add(`plugin:${p.id}`);
         results.push({
           type: 'plugin',
           icon: p.icon,
@@ -323,34 +358,26 @@ const PluginSystem = (() => {
         });
       }
 
-      // Cerca anche nelle sezioni docs
       if (p.docs) {
         for (const [sKey, section] of Object.entries(p.docs)) {
-          if (section.title && section.title.toLowerCase().includes(lq)) {
+          const key = `doc:${p.id}:${sKey}`;
+          if (seen.has(key)) continue;
+
+          const titleMatch = section.title && section.title.toLowerCase().includes(lq);
+          const contentMatch = section.content &&
+            JSON.stringify(section.content).toLowerCase().includes(lq);
+
+          if (titleMatch || contentMatch) {
+            seen.add(key);
             results.push({
               type: 'doc',
               icon: section.icon || '📄',
               title: `${p.name} — ${section.title}`,
-              sub: `Sezione documentazione`,
+              sub: titleMatch ? 'Sezione documentazione' : `Contiene "${q}"`,
               tag: 'Docs',
               tagClass: 'tag-b',
-              action: () => { openDoc(p.id); setTimeout(() => switchSection(sKey), 50); }
+              action: () => { openDoc(p.id); setTimeout(() => switchSection(sKey), 80); }
             });
-          }
-          // Cerca nel testo dei contenuti
-          if (section.content) {
-            const text = JSON.stringify(section.content).toLowerCase();
-            if (text.includes(lq) && !results.find(r => r.title === `${p.name} — ${section.title}`)) {
-              results.push({
-                type: 'doc',
-                icon: section.icon || '📄',
-                title: `${p.name} — ${section.title}`,
-                sub: `Contiene "${q}"`,
-                tag: 'Docs',
-                tagClass: 'tag-b',
-                action: () => { openDoc(p.id); setTimeout(() => switchSection(sKey), 50); }
-              });
-            }
           }
         }
       }
@@ -375,7 +402,6 @@ const PluginSystem = (() => {
     const p = _currentPlugin;
     const sections = p.docs || {};
 
-    // Build sidebar nav — use doc keys in preferred order, then any extras
     const orderedKeys = [
       ...NAV_SECTIONS_ORDER.filter(k => sections[k]),
       ...Object.keys(sections).filter(k => !NAV_SECTIONS_ORDER.includes(k))
@@ -386,38 +412,55 @@ const PluginSystem = (() => {
       <div class="doc-sidebar-plugin">
         <div class="doc-sidebar-plugin-icon">${p.icon}</div>
         <div>
-          <div class="doc-sidebar-plugin-name">${p.name}</div>
-          <div class="doc-sidebar-plugin-ver">${p.version}</div>
+          <div class="doc-sidebar-plugin-name">${escHtml(p.name)}</div>
+          <div class="doc-sidebar-plugin-ver">${escHtml(p.version)}</div>
         </div>
       </div>
       <div class="doc-nav-section">Sezioni</div>
       ${orderedKeys.map(k => `
         <button class="doc-nav-item${k === _currentSection ? ' active' : ''}"
+          data-section="${k}"
           onclick="PluginSystem.switchSection('${k}')">
-          ${sections[k].icon || '📄'} ${sections[k].title || k}
+          ${sections[k].icon || '📄'} ${escHtml(sections[k].title || k)}
         </button>`).join('')}
       ${p.modrinthId ? `
         <div class="doc-nav-section">Download</div>
-        <a class="modrinth-badge" href="https://modrinth.com/plugin/${p.modrinthId}" target="_blank"
+        <a class="modrinth-badge"
+           href="https://modrinth.com/plugin/${escHtml(p.modrinthId)}"
+           target="_blank" rel="noopener"
            style="margin:.25rem .5rem;font-size:11px">
           ⬇ Modrinth
         </a>` : ''}
     `;
 
+    // FIX sidebar mobile: aggiungi select per mobile navigation
+    const mobileSel = `
+      <div class="doc-mobile-nav">
+        <select onchange="PluginSystem.switchSection(this.value)">
+          ${orderedKeys.map(k => `
+            <option value="${k}" ${k === _currentSection ? 'selected' : ''}>
+              ${sections[k].title || k}
+            </option>`).join('')}
+        </select>
+      </div>`;
+
     const currentSec = sections[_currentSection] || {};
     const contentHTML = `
+      ${mobileSel}
       <div class="doc-content-header">
-        <div class="doc-content-title">${p.icon} <span>${p.name}</span></div>
-        <div style="font-size:13px;color:var(--muted);margin-top:.4rem">${p.description}</div>
+        <div class="doc-content-title">${p.icon} <span>${escHtml(p.name)}</span></div>
+        <div style="font-size:13px;color:var(--muted);margin-top:.4rem">${escHtml(p.description)}</div>
         <div class="doc-content-meta">
-          <div class="doc-content-meta-item">Versione: <strong>${p.version}</strong></div>
-          <div class="doc-content-meta-item">Richiede: <strong>${p.requiresVersion}</strong></div>
-          <div class="doc-content-meta-item">Dipendenze: <strong>${p.dependencies}</strong></div>
+          <div class="doc-content-meta-item">Versione: <strong>${escHtml(p.version)}</strong></div>
+          <div class="doc-content-meta-item">Richiede: <strong>${escHtml(p.requiresVersion)}</strong></div>
+          <div class="doc-content-meta-item">Dipendenze: <strong>${escHtml(p.dependencies)}</strong></div>
           <div class="doc-content-meta-item" style="color:var(--orange)">
             ⬇ <strong>${fmtNum(p.downloads)}</strong> download
           </div>
           ${p.modrinthId
-            ? `<a class="modrinth-badge" href="https://modrinth.com/plugin/${p.modrinthId}" target="_blank"
+            ? `<a class="modrinth-badge"
+                 href="https://modrinth.com/plugin/${escHtml(p.modrinthId)}"
+                 target="_blank" rel="noopener"
                  style="padding:4px 10px;font-size:11px">Modrinth</a>`
             : `<span class="tag tag-o" style="font-size:10px">Solo su SIXsPlugins</span>`}
         </div>
@@ -441,10 +484,14 @@ const PluginSystem = (() => {
     const contentEl = document.getElementById('doc-section-content');
     if (contentEl) contentEl.innerHTML = renderContent(sec.content);
 
-    document.querySelectorAll('.doc-nav-item').forEach(b => b.classList.remove('active'));
+    // FIX: usa data-section invece di textContent.includes (più preciso)
     document.querySelectorAll('.doc-nav-item').forEach(b => {
-      if (b.textContent.includes(sec.title || key)) b.classList.add('active');
+      b.classList.toggle('active', b.dataset.section === key);
     });
+
+    // Aggiorna anche la select mobile
+    const mobileSel = document.querySelector('.doc-mobile-nav select');
+    if (mobileSel) mobileSel.value = key;
 
     const docContent = document.getElementById('doc-content');
     if (docContent) docContent.scrollTop = 0;
