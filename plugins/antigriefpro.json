@@ -1,0 +1,219 @@
+{
+  "id": "antigriefpro",
+  "name": "AntiGrief Pro",
+  "icon": "🛡️",
+  "version": "v2.4.1",
+  "category": "Protection",
+  "categoryTag": "tag-b",
+  "description": "Protezione avanzata delle aree con claim e permessi granulari per ogni gruppo.",
+  "modrinthId": "AANobbyd",
+  "requiresVersion": "Paper 1.20+",
+  "dependencies": "Nessuna",
+  "hasPermissions": true,
+  "visible": true,
+
+  "docs": {
+    "overview": {
+      "title": "Panoramica",
+      "icon": "📋",
+      "content": [
+        {
+          "type": "paragraph",
+          "text": "AntiGrief Pro è un sistema di protezione delle aree per server Paper/Spigot. Permette ai giocatori di reclamare terreno, gestire permessi per singoli utenti o gruppi e prevenire qualsiasi forma di griefing."
+        },
+        {
+          "type": "callout",
+          "style": "info",
+          "title": "💡 Info",
+          "text": "Compatibile con Paper 1.20.x, 1.21.x. Non supporta CraftBukkit puro."
+        },
+        {
+          "type": "heading",
+          "text": "Caratteristiche principali"
+        },
+        {
+          "type": "list",
+          "items": [
+            "Claim illimitati per area (configurabile)",
+            "Permessi granulari: build, break, interact, container, pvp",
+            "Claim parent/child (aree figlie)",
+            "Integrazione con LuckPerms per i gruppi",
+            "Flags globali per spawn e zone protette dal server",
+            "Database: file YAML o MySQL"
+          ]
+        }
+      ]
+    },
+
+    "install": {
+      "title": "Installazione",
+      "icon": "📦",
+      "content": [
+        {
+          "type": "paragraph",
+          "text": "Scarica il file <code>AntiGriefPro-2.4.1.jar</code> e copialo nella cartella <code>plugins/</code> del tuo server. Riavvia il server — la cartella di configurazione verrà creata automaticamente."
+        },
+        {
+          "type": "callout",
+          "style": "warn",
+          "title": "⚠️ Attenzione",
+          "text": "Richiede Java 17 o superiore. Non usare /reload — riavvia sempre il server."
+        },
+        {
+          "type": "heading",
+          "text": "Struttura cartelle"
+        },
+        {
+          "type": "code",
+          "language": "text",
+          "lines": [
+            { "type": "key",    "text": "plugins/" },
+            { "type": "key",    "text": "└── AntiGriefPro/" },
+            { "type": "value",  "text": "    ├── config.yml",   "comment": "configurazione principale" },
+            { "type": "value",  "text": "    ├── messages.yml", "comment": "messaggi personalizzabili" },
+            { "type": "value",  "text": "    └── data/",        "comment": "claim salvati" }
+          ]
+        },
+        {
+          "type": "heading",
+          "text": "Requisiti"
+        },
+        {
+          "type": "table",
+          "headers": ["Requisito", "Versione minima", "Note"],
+          "rows": [
+            ["Java",          "17+",    "Consigliato 21"],
+            ["Paper/Spigot",  "1.20.1", "Paper raccomandato"],
+            ["LuckPerms",     "Opzionale", "Per gruppi avanzati"]
+          ]
+        }
+      ]
+    },
+
+    "config": {
+      "title": "Configurazione",
+      "icon": "⚙️",
+      "content": [
+        {
+          "type": "paragraph",
+          "text": "Il file <code>config.yml</code> principale si trova in <code>plugins/AntiGriefPro/config.yml</code>."
+        },
+        {
+          "type": "code",
+          "language": "yaml",
+          "lines": [
+            { "type": "key",   "text": "database:" },
+            { "type": "value", "text": "  type: yaml",              "comment": "yaml o mysql" },
+            { "type": "value", "text": "  mysql:" },
+            { "type": "value", "text": "    host: localhost" },
+            { "type": "value", "text": "    port: 3306" },
+            { "type": "value", "text": "    database: antigriefpro" },
+            { "type": "plain", "text": "" },
+            { "type": "key",   "text": "claims:" },
+            { "type": "value", "text": "  max-per-player: 10",      "comment": "-1 per illimitati" },
+            { "type": "value", "text": "  min-size: 5",             "comment": "blocchi minimi per lato" },
+            { "type": "value", "text": "  default-flags:" },
+            { "type": "value", "text": "    pvp: false" },
+            { "type": "value", "text": "    mob-spawning: true" },
+            { "type": "plain", "text": "" },
+            { "type": "key",   "text": "messages-language: it" }
+          ]
+        },
+        {
+          "type": "heading",
+          "text": "Flags disponibili"
+        },
+        {
+          "type": "table",
+          "headers": ["Flag", "Default", "Descrizione"],
+          "rows": [
+            ["pvp",          "false", "Permette PvP nell'area"],
+            ["mob-spawning", "true",  "Spawn mob nell'area"],
+            ["explosions",   "false", "Permette esplosioni"],
+            ["fire-spread",  "false", "Propagazione fuoco"]
+          ]
+        }
+      ]
+    },
+
+    "commands": {
+      "title": "Comandi & Permessi",
+      "icon": "💬",
+      "content": [
+        {
+          "type": "table",
+          "headers": ["Comando", "Permesso", "Descrizione"],
+          "rows": [
+            ["/claim",                    "antigriefpro.claim", "Crea un claim nell'area selezionata"],
+            ["/unclaim",                  "antigriefpro.claim", "Rimuove il claim corrente"],
+            ["/trust <player>",           "antigriefpro.trust", "Aggiunge un giocatore al claim"],
+            ["/untrust <player>",         "antigriefpro.trust", "Rimuove un giocatore dal claim"],
+            ["/claimflag <flag> <valore>","antigriefpro.flags", "Imposta un flag sul claim"],
+            ["/agpadmin reload",          "antigriefpro.admin", "Ricarica la configurazione"]
+          ]
+        }
+      ]
+    },
+
+    "faq": {
+      "title": "FAQ",
+      "icon": "❓",
+      "content": [
+        {
+          "type": "faq",
+          "items": [
+            {
+              "question": "I claim non si salvano dopo il riavvio",
+              "answer": "Verifica che la cartella <code>plugins/AntiGriefPro/data/</code> esista e che il server abbia i permessi di scrittura. Se usi MySQL, controlla le credenziali nel config."
+            },
+            {
+              "question": "Come creare aree protette dal server (spawn)?",
+              "answer": "Usa il comando <code>/agpadmin claim <nome></code> da admin per creare un claim server-side non reclamabile dai giocatori."
+            },
+            {
+              "question": "LuckPerms è obbligatorio?",
+              "answer": "No, è opzionale. Senza LuckPerms i permessi per gruppo funzioneranno tramite il sistema built-in del plugin."
+            }
+          ]
+        }
+      ]
+    },
+
+    "changelog": {
+      "title": "Changelog",
+      "icon": "📝",
+      "content": [
+        {
+          "type": "changelog",
+          "entries": [
+            {
+              "version": "v2.4.1",
+              "date": "15 mag 2025",
+              "changes": [
+                "Fix crash su reload con MySQL attivo",
+                "Migliorata performance query su database grandi"
+              ]
+            },
+            {
+              "version": "v2.4.0",
+              "date": "2 apr 2025",
+              "changes": [
+                "Aggiunto supporto flag fire-spread",
+                "Nuovo comando /claimflag",
+                "Supporto Paper 1.21.4"
+              ]
+            },
+            {
+              "version": "v2.3.0",
+              "date": "10 gen 2025",
+              "changes": [
+                "Integrazione LuckPerms per gruppi",
+                "Localizzazione italiana"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

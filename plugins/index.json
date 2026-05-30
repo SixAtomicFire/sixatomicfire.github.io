@@ -1,0 +1,15 @@
+{
+  "_comment": "Aggiungi qui il nome del file JSON (senza .json) per ogni nuovo plugin. L'ordine determina l'ordine di visualizzazione nel sito.",
+  "plugins": [
+    "antigriefpro",
+    "shopeasy",
+    "combatcore",
+    "townbuilder",
+    "questforge",
+    "ecofarm",
+    "speedbridge",
+    "statstracker",
+    "magicwands",
+    "worldportal"
+  ]
+}

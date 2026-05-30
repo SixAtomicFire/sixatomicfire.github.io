@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SIXsPlugins — Supporto Plugin Minecraft</title>
+
+  <!-- SEO -->
+  <meta name="description" content="Supporto ufficiale per i plugin Minecraft di SIX. Documentazione, ticket e aggiornamenti senza Discord."/>
+  <meta name="keywords" content="Minecraft plugin, supporto, SIX, Paper, Spigot, AntiGrief, ShopEasy"/>
+  <meta name="author" content="SIX"/>
+  <meta property="og:title" content="SIXsPlugins — Supporto Plugin Minecraft"/>
+  <meta property="og:description" content="Documentazione, ticket e aggiornamenti per i plugin Minecraft di SIX."/>
+  <meta property="og:type" content="website"/>
+  <meta name="theme-color" content="#fb923c"/>
+
+  <link rel="stylesheet" href="css/style.css"/>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════════════
+     PUBLIC SITE
+══════════════════════════════════════════════════════════════ -->
+<div id="public-site">
+
+  <!-- NAV -->
+  <nav class="nav">
+    <div class="nav-logo" onclick="SiteRouter.goPage('home',0)">
+      <div class="logo-block"><span></span><span></span><span></span><span></span></div>
+      SIXsPlugins
+    </div>
+
+    <div class="nav-center">
+      <button class="nav-tab active" onclick="SiteRouter.goPage('home',0)">Home</button>
+      <button class="nav-tab"        onclick="SiteRouter.goPage('docs',1)">Docs</button>
+      <button class="nav-tab"        onclick="SiteRouter.goPage('ticket',2)">Apri Ticket</button>
+    </div>
+
+    <div class="nav-right">
+      <button class="nav-search-btn" onclick="Search.open()" title="Cerca (Ctrl+K)">🔍</button>
+
+      <div class="user-menu-wrap" id="user-menu-wrap">
+        <button class="nav-user-btn" id="nav-user-btn">🔑 Accedi</button>
+        <div class="user-menu" id="user-menu">
+          <div class="user-menu-header">
+            <div class="user-menu-name"  id="um-name">—</div>
+            <div class="user-menu-email" id="um-email">—</div>
+          </div>
+          <button class="user-menu-item" onclick="UserMenu.goMyTickets();UserMenu.close()">
+            🎫 I miei ticket
+          </button>
+          <button class="user-menu-item danger" onclick="Auth.logout();UserMenu.close()">
+            Esci
+          </button>
+        </div>
+      </div>
+
+      <button class="nav-cta" onclick="SiteRouter.goPage('ticket',2)">+ Nuovo Ticket</button>
+    </div>
+  </nav>
+
+  <!-- ── HOME ── -->
+  <div class="page active" id="page-home">
+    <div class="hero">
+      <div class="hero-tag">Supporto attivo · risposta &lt;4h</div>
+      <h1>Benvenuto su<br><span>SIXsPlugins</span></h1>
+      <p>Supporto ufficiale per tutti i plugin Minecraft sviluppati da SIX. Documentazione, ticket e aggiornamenti — tutto qui, senza Discord.</p>
+      <div class="hero-btns">
+        <button class="btn-primary" onclick="SiteRouter.goPage('ticket',2)">Apri un Ticket</button>
+        <button class="btn-outline"  onclick="SiteRouter.goPage('docs',1)">Leggi le Docs →</button>
+      </div>
+    </div>
+
+    <div class="stats-bar">
+      <div class="stat-item">
+        <div class="stat-val" id="home-total-dl">—</div>
+        <div class="stat-label">Download totali</div>
+        <div class="stat-sub">su Modrinth</div>
+      </div>
+      <div class="stat-item"><div class="stat-val" id="home-plugin-count">—</div><div class="stat-label">Plugin disponibili</div></div>
+      <div class="stat-item"><div class="stat-val">98%</div><div class="stat-label">Problemi risolti</div></div>
+      <div class="stat-item"><div class="stat-val">&lt;4h</div><div class="stat-label">Risposta media</div></div>
+      <div class="stat-item"><div class="stat-val">1.21</div><div class="stat-label">Versione MC</div></div>
+    </div>
+
+    <div class="features">
+      <div class="feat-card">
+        <div class="feat-icon" style="background:var(--orange-dim)">🎫</div>
+        <div class="feat-title">Sistema Ticket</div>
+        <div class="feat-desc">Apri una segnalazione per qualsiasi problema. Ogni ticket viene tracciato e riceve risposta personale.</div>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon" style="background:var(--blue-dim)">📖</div>
+        <div class="feat-title">Documentazione</div>
+        <div class="feat-desc">Guide complete per installazione, configurazione e uso di ogni plugin con esempi pratici.</div>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon" style="background:var(--amber-dim)">⚡</div>
+        <div class="feat-title">Aggiornamenti rapidi</div>
+        <div class="feat-desc">Tutti i plugin sono aggiornati costantemente. Changelog e note di rilascio sempre disponibili.</div>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon" style="background:var(--green-dim)">🛡️</div>
+        <div class="feat-title">Supporto dedicato</div>
+        <div class="feat-desc">Assistenza diretta dallo sviluppatore. Niente bot, niente attese — risposte vere ai tuoi problemi.</div>
+      </div>
+    </div>
+
+    <div class="plugin-showcase">
+      <div class="section-header">
+        <span class="section-title">// Plugin disponibili</span>
+        <span style="font-size:12px;color:var(--muted);font-family:var(--mono)" id="home-plugin-label">Caricamento...</span>
+      </div>
+      <div class="plugin-list" id="home-plugin-list"></div>
+    </div>
+  </div>
+
+  <!-- ── DOCS INDEX ── -->
+  <div class="page" id="page-docs">
+    <div class="page-header-row">
+      <div>
+        <span class="section-title" style="display:block;margin-bottom:6px">// Documentazione</span>
+        <p style="font-size:13px;color:var(--muted)">Seleziona un plugin per leggere la guida completa.</p>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input class="form-input" style="width:220px;padding:7px 12px;font-size:13px"
+          type="text" placeholder="Filtra plugin..."
+          oninput="filterDocsGrid(this.value)"/>
+      </div>
+    </div>
+    <div class="docs-grid" id="docs-grid"></div>
+  </div>
+
+  <!-- ── DOC DETAIL ── -->
+  <div class="page" id="page-doc-detail">
+    <div class="doc-detail-wrap">
+      <div class="doc-sidebar" id="doc-sidebar"></div>
+      <div class="doc-content" id="doc-content"></div>
+    </div>
+  </div>
+
+  <!-- ── TICKET ── -->
+  <div class="page" id="page-ticket">
+    <div class="page-header">
+      <span class="section-title">// Apri un nuovo ticket</span>
+      <p>Descrivi il problema e riceverai risposta entro 4 ore.</p>
+    </div>
+    <div class="two-col">
+      <div class="form-card">
+        <h2>Nuovo Ticket</h2>
+
+        <div class="form-group">
+          <label class="form-label">Il tuo username / email</label>
+          <input class="form-input" type="text" id="ticket-user"
+            placeholder="es. Steve · steve@example.com"/>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Plugin coinvolto</label>
+          <select class="form-select" id="ticket-plugin-sel">
+            <option>— Seleziona un plugin —</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Versione Minecraft / Paper</label>
+          <input class="form-input" type="text"
+            placeholder="es. 1.21.4 / Paper build.123"/>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Titolo del problema</label>
+          <input class="form-input" type="text" id="ticket-title"
+            placeholder="Breve descrizione"/>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Descrizione dettagliata</label>
+          <textarea class="form-textarea" id="ticket-desc"
+            placeholder="Cosa succede? Quando accade? Incolla qui eventuali stack trace dal log..."></textarea>
+        </div>
+
+        <!-- Allegati -->
+        <div class="form-group">
+          <label class="form-label">Allegati <span style="font-weight:400;text-transform:none;font-size:10px;color:var(--muted)">(screenshot, log — max 5 file)</span></label>
+          <div class="file-upload-area">
+            <input type="file" multiple accept=".png,.jpg,.jpeg,.gif,.txt,.log,.zip"
+              onchange="TicketForm.handleFiles(this)"/>
+            <div class="file-upload-icon">📎</div>
+            <div class="file-upload-text">
+              Trascina qui i file o <span>sfoglia</span>
+            </div>
+          </div>
+          <div class="file-list" id="file-list"></div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" style="margin-bottom:8px">Priorità</label>
+          <div class="prio-grid">
+            <button class="prio-btn sel-l" onclick="TicketForm.selPrio(this,'sel-l')">🟠 Bassa</button>
+            <button class="prio-btn"       onclick="TicketForm.selPrio(this,'sel-m')">🟡 Media</button>
+            <button class="prio-btn"       onclick="TicketForm.selPrio(this,'sel-h')">🔴 Alta</button>
+          </div>
+        </div>
+
+        <button class="submit-btn" onclick="TicketForm.submit()">Invia Ticket →</button>
+      </div>
+
+      <div>
+        <div class="section-title" style="margin-bottom:1rem">// I tuoi ticket recenti</div>
+        <div id="public-ticket-list">
+          <!-- Se loggato mostra i suoi ticket, altrimenti mostra demo -->
+          <div class="ticket-list">
+            <div class="ticket-item">
+              <div class="t-dot t-open"></div>
+              <div class="t-info">
+                <div class="t-title">ShopEasy — prezzi non si aggiornano su /reload</div>
+                <div class="t-meta">#0042 · 2h fa · ShopEasy v3.1.2</div>
+              </div>
+              <span class="t-badge" style="background:var(--orange-dim);color:var(--orange)">Aperto</span>
+            </div>
+            <div class="ticket-item">
+              <div class="t-dot t-wip"></div>
+              <div class="t-info">
+                <div class="t-title">AntiGrief — claim non si salva al restart</div>
+                <div class="t-meta">#0041 · ieri · AntiGrief Pro v2.4.1</div>
+              </div>
+              <span class="t-badge" style="background:var(--amber-dim);color:var(--amber)">In corso</span>
+            </div>
+            <div class="ticket-item">
+              <div class="t-dot t-closed"></div>
+              <div class="t-info">
+                <div class="t-title">QuestForge — NPE in QuestManager</div>
+                <div class="t-meta">#0040 · 3 giorni fa</div>
+              </div>
+              <span class="t-badge" style="background:rgba(100,116,139,.15);color:var(--muted)">Chiuso</span>
+            </div>
+          </div>
+          <div style="margin-top:1rem;padding:1rem;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);text-align:center">
+            <p style="font-size:13px;color:var(--muted);margin-bottom:.75rem">Accedi per vedere tutti i tuoi ticket</p>
+            <button class="btn-primary" style="padding:8px 20px;font-size:13px" onclick="AuthModal.open('login')">Accedi / Registrati</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── MY TICKETS ── -->
+  <div class="page" id="page-my-tickets">
+    <div class="page-header" style="margin-bottom:1.5rem">
+      <span class="section-title">// I miei ticket</span>
+      <p>Storico di tutte le tue segnalazioni.</p>
+    </div>
+    <div class="my-tickets-wrap">
+      <div style="display:flex;justify-content:flex-end;margin-bottom:1rem">
+        <button class="btn-primary" style="padding:8px 20px;font-size:13px"
+          onclick="SiteRouter.goPage('ticket',2)">+ Nuovo Ticket</button>
+      </div>
+      <div class="ticket-list" id="my-tickets-list"></div>
+    </div>
+  </div>
+
+</div><!-- /public-site -->
+
+<!-- ══════════════════════════════════════════════════════════════
+     ADMIN LOGIN
+══════════════════════════════════════════════════════════════ -->
+<div id="admin-login" style="display:none">
+  <div class="login-wrap">
+    <div class="login-card">
+      <div class="login-logo">
+        <div class="logo-block"><span></span><span></span><span></span><span></span></div>
+        SIXsPlugins
+      </div>
+      <div class="login-title">Accesso Admin</div>
+      <div class="login-error" id="login-err">Username o password errati.</div>
+      <div class="form-group">
+        <label class="form-label">Username</label>
+        <input class="form-input" id="l-user" type="text" placeholder="admin"
+          onkeydown="if(event.key==='Enter')Admin.doLogin()"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input class="form-input" id="l-pass" type="password" placeholder="••••••••"
+          onkeydown="if(event.key==='Enter')Admin.doLogin()"/>
+      </div>
+      <button class="login-btn" onclick="Admin.doLogin()">Accedi →</button>
+      <p style="margin-top:1.25rem;text-align:center;font-size:12px">
+        <a onclick="Admin.showPublic()" style="cursor:pointer;color:var(--muted);text-decoration:underline">← Torna al sito</a>
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     ADMIN SHELL
+══════════════════════════════════════════════════════════════ -->
+<div id="admin-shell">
+  <nav class="admin-nav">
+    <div class="admin-nav-left">
+      <div class="admin-brand">
+        <div class="logo-block"><span></span><span></span><span></span><span></span></div>
+        SIXsPlugins
+        <span class="admin-badge">ADMIN</span>
+      </div>
+      <div class="admin-nav-tabs">
+        <button class="admin-tab active" onclick="Admin.aPage('dashboard',this)">Dashboard</button>
+        <button class="admin-tab"        onclick="Admin.aPage('tickets',this)">Ticket</button>
+        <button class="admin-tab"        onclick="Admin.aPage('plugins',this)">Plugin</button>
+        <button class="admin-tab"        onclick="Admin.aPage('users',this)">Utenti</button>
+        <button class="admin-tab"        onclick="Admin.aPage('stats',this)">Statistiche</button>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <a onclick="Admin.showPublic()" style="font-size:12px;color:var(--muted);cursor:pointer;text-decoration:underline">Vai al sito</a>
+      <button class="admin-logout" onclick="Admin.doLogout()">Esci</button>
+    </div>
+  </nav>
+
+  <div class="admin-body">
+
+    <!-- DASHBOARD -->
+    <div class="admin-page active" id="ap-dashboard">
+      <div class="a-grid-4">
+        <div class="a-stat"><div class="a-stat-val" style="color:var(--orange)">3</div><div class="a-stat-label">Ticket aperti</div><div class="a-stat-delta delta-dn">+2 oggi</div></div>
+        <div class="a-stat"><div class="a-stat-val" style="color:var(--amber)">1</div><div class="a-stat-label">In lavorazione</div><div class="a-stat-delta" style="color:var(--muted)">invariato</div></div>
+        <div class="a-stat"><div class="a-stat-val" style="color:var(--green)">38</div><div class="a-stat-label">Ticket chiusi</div><div class="a-stat-delta delta-up">+5 questa settimana</div></div>
+        <div class="a-stat"><div class="a-stat-val" style="color:var(--blue)" id="adm-dl-total">—</div><div class="a-stat-label">Download Modrinth</div><div class="a-stat-delta delta-up">totale plugin</div></div>
+      </div>
+      <div class="a-row">
+        <div class="a-card">
+          <div class="a-card-title">Ticket recenti</div>
+          <table class="a-table">
+            <tr><th>#</th><th>Plugin</th><th>Titolo</th><th>Priorità</th><th>Stato</th><th></th></tr>
+            <tr><td style="color:var(--muted);font-family:var(--mono)">#0043</td><td>ShopEasy</td><td>GUI non si apre</td><td><span class="tag tag-a" style="font-size:10px">Media</span></td><td><span class="sdot sdot-open"></span>Aperto</td><td><button class="a-btn a-btn-orange" onclick="Admin.aPage('tickets',document.querySelectorAll('.admin-tab')[1])">Gestisci</button></td></tr>
+            <tr><td style="color:var(--muted);font-family:var(--mono)">#0042</td><td>ShopEasy</td><td>Prezzi non aggiornati</td><td><span class="tag tag-a" style="font-size:10px">Media</span></td><td><span class="sdot sdot-open"></span>Aperto</td><td><button class="a-btn a-btn-orange" onclick="Admin.aPage('tickets',document.querySelectorAll('.admin-tab')[1])">Gestisci</button></td></tr>
+            <tr><td style="color:var(--muted);font-family:var(--mono)">#0041</td><td>AntiGrief</td><td>Claim non si salva</td><td><span class="tag" style="background:var(--red-dim);color:var(--red);font-size:10px">Alta</span></td><td><span class="sdot sdot-wip"></span>In corso</td><td><button class="a-btn" onclick="Admin.aPage('tickets',document.querySelectorAll('.admin-tab')[1])">Vedi</button></td></tr>
+          </table>
+        </div>
+        <div class="a-card">
+          <div class="a-card-title">Attività ultimi 7 giorni</div>
+          <div class="bar-wrap" id="bar-chart"></div>
+          <div style="display:flex;justify-content:space-between;margin-top:6px">
+            <span style="font-size:10px;color:var(--muted);font-family:var(--mono)">Lun</span>
+            <span style="font-size:10px;color:var(--muted);font-family:var(--mono)">Mar</span>
+            <span style="font-size:10px;color:var(--muted);font-family:var(--mono)">Mer</span>
+            <span style="font-size:10px;color:var(--muted);font-family:var(--mono)">Gio</span>
+            <span style="font-size:10px;color:var(--muted);font-family:var(--mono)">Ven</span>
+            <span style="font-size:10px;color:var(--muted);font-family:var(--mono)">Sab</span>
+            <span style="font-size:10px;color:var(--muted);font-family:var(--mono)">Dom</span>
+          </div>
+        </div>
+      </div>
+      <div class="a-card">
+        <div class="a-card-title">Download per plugin (Modrinth)</div>
+        <table class="a-table" id="adm-dl-table">
+          <tr><th>Plugin</th><th>Versione</th><th>Download</th><th>Ticket aperti</th><th>Stato</th></tr>
+        </table>
+      </div>
+    </div>
+
+    <!-- TICKETS -->
+    <div class="admin-page" id="ap-tickets">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem">
+        <span class="section-title">// Gestione Ticket</span>
+        <div style="display:flex;gap:8px">
+          <select class="form-select" style="width:auto;padding:6px 10px;font-size:12px"
+            onchange="Admin.filterTickets(this.value)">
+            <option value="all">Tutti</option>
+            <option value="open">Aperti</option>
+            <option value="wip">In corso</option>
+            <option value="closed">Chiusi</option>
+          </select>
+        </div>
+      </div>
+      <div class="a-card" style="padding:0;overflow:hidden">
+        <table class="a-table">
+          <tr><th>#</th><th>Utente</th><th>Plugin</th><th>Titolo</th><th>Priorità</th><th>Stato</th><th>Aperto</th><th>Azioni</th></tr>
+          <tr data-status="open"><td style="color:var(--muted);font-family:var(--mono)">#0043</td><td>Steve99</td><td>ShopEasy</td><td>GUI non si apre dopo /reload</td><td><span class="tag tag-a" style="font-size:10px">Media</span></td><td><span class="sdot sdot-open"></span>Aperto</td><td style="color:var(--muted)">1h fa</td><td style="display:flex;gap:6px"><button class="a-btn a-btn-orange" onclick="Admin.openTicketDetail('Steve99','ShopEasy','GUI non si apre dopo /reload','open')">Apri</button><button class="a-btn a-btn-red" onclick="Admin.changeStatus(this,'closed')">Chiudi</button></td></tr>
+          <tr data-status="open"><td style="color:var(--muted);font-family:var(--mono)">#0042</td><td>Alex_MC</td><td>ShopEasy</td><td>Prezzi non si aggiornano</td><td><span class="tag tag-a" style="font-size:10px">Media</span></td><td><span class="sdot sdot-open"></span>Aperto</td><td style="color:var(--muted)">2h fa</td><td style="display:flex;gap:6px"><button class="a-btn a-btn-orange" onclick="Admin.openTicketDetail('Alex_MC','ShopEasy','Prezzi non si aggiornano','open')">Apri</button><button class="a-btn a-btn-red" onclick="Admin.changeStatus(this,'closed')">Chiudi</button></td></tr>
+          <tr data-status="wip"><td style="color:var(--muted);font-family:var(--mono)">#0041</td><td>Notch_jr</td><td>AntiGrief</td><td>Claim non si salva al restart</td><td><span class="tag" style="background:var(--red-dim);color:var(--red);font-size:10px">Alta</span></td><td><span class="sdot sdot-wip"></span>In corso</td><td style="color:var(--muted)">ieri</td><td style="display:flex;gap:6px"><button class="a-btn a-btn-orange" onclick="Admin.openTicketDetail('Notch_jr','AntiGrief','Claim non si salva al restart','wip')">Apri</button><button class="a-btn a-btn-red" onclick="Admin.changeStatus(this,'closed')">Chiudi</button></td></tr>
+          <tr data-status="closed"><td style="color:var(--muted);font-family:var(--mono)">#0040</td><td>Herobrine</td><td>QuestForge</td><td>NPE in QuestManager</td><td><span class="tag tag-a" style="font-size:10px">Media</span></td><td><span class="sdot sdot-closed"></span>Chiuso</td><td style="color:var(--muted)">3g fa</td><td><button class="a-btn" onclick="Admin.openTicketDetail('Herobrine','QuestForge','NPE in QuestManager','closed')">Vedi</button></td></tr>
+          <tr data-status="closed"><td style="color:var(--muted);font-family:var(--mono)">#0039</td><td>CrafterX</td><td>CombatCore</td><td>Cooldown non funziona con Velocity</td><td><span class="tag" style="background:var(--red-dim);color:var(--red);font-size:10px">Alta</span></td><td><span class="sdot sdot-closed"></span>Chiuso</td><td style="color:var(--muted)">5g fa</td><td><button class="a-btn" onclick="Admin.openTicketDetail('CrafterX','CombatCore','Cooldown non funziona con Velocity','closed')">Vedi</button></td></tr>
+        </table>
+      </div>
+    </div>
+
+    <!-- PLUGINS -->
+    <div class="admin-page" id="ap-plugins">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem">
+        <span class="section-title">// Gestione Plugin</span>
+        <button class="a-btn a-btn-orange" onclick="document.getElementById('modal-addplugin').classList.add('open')">+ Aggiungi Plugin</button>
+      </div>
+      <div class="a-card" style="padding:0;overflow:hidden">
+        <table class="a-table" id="adm-plugins-table">
+          <tr><th>Plugin</th><th>Versione</th><th>Categoria</th><th>Download</th><th>Ticket aperti</th><th>Stato</th><th>Azioni</th></tr>
+        </table>
+      </div>
+    </div>
+
+    <!-- USERS -->
+    <div class="admin-page" id="ap-users">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem">
+        <span class="section-title">// Utenti registrati</span>
+        <input class="form-input" style="width:220px;padding:7px 12px;font-size:13px"
+          type="text" placeholder="Cerca utente..." oninput="Admin.filterUsers(this.value)"/>
+      </div>
+      <div class="a-card" style="padding:0;overflow:hidden">
+        <table class="a-table" id="users-table">
+          <tr><th>Username</th><th>Email</th><th>Ticket totali</th><th>Aperti</th><th>Registrato</th><th>Stato</th><th>Azioni</th></tr>
+          <tr><td><strong>Steve99</strong></td><td style="color:var(--muted)">steve99@mc.net</td><td>5</td><td>1</td><td style="color:var(--muted)">12 mag 2025</td><td><span class="sdot sdot-online"></span>Attivo</td><td style="display:flex;gap:6px"><button class="a-btn">Vedi ticket</button><button class="a-btn a-btn-red">Blocca</button></td></tr>
+          <tr><td><strong>Alex_MC</strong></td><td style="color:var(--muted)">alex@example.com</td><td>3</td><td>1</td><td style="color:var(--muted)">3 gen 2025</td><td><span class="sdot sdot-online"></span>Attivo</td><td style="display:flex;gap:6px"><button class="a-btn">Vedi ticket</button><button class="a-btn a-btn-red">Blocca</button></td></tr>
+          <tr><td><strong>Notch_jr</strong></td><td style="color:var(--muted)">notch@blocks.org</td><td>8</td><td>1</td><td style="color:var(--muted)">7 nov 2024</td><td><span class="sdot sdot-online"></span>Attivo</td><td style="display:flex;gap:6px"><button class="a-btn">Vedi ticket</button><button class="a-btn a-btn-red">Blocca</button></td></tr>
+          <tr><td><strong>Herobrine</strong></td><td style="color:var(--muted)">hero@void.net</td><td>2</td><td>0</td><td style="color:var(--muted)">18 apr 2025</td><td><span class="sdot sdot-off"></span>Inattivo</td><td style="display:flex;gap:6px"><button class="a-btn">Vedi ticket</button><button class="a-btn">Sblocca</button></td></tr>
+        </table>
+      </div>
+    </div>
+
+    <!-- STATS -->
+    <div class="admin-page" id="ap-stats">
+      <div style="margin-bottom:1.25rem"><span class="section-title">// Statistiche</span></div>
+      <div class="a-grid-4">
+        <div class="a-stat"><div class="a-stat-val" style="color:var(--orange)">42</div><div class="a-stat-label">Ticket totali</div><div class="a-stat-delta delta-up">+12 questo mese</div></div>
+        <div class="a-stat"><div class="a-stat-val" style="color:var(--green)">90%</div><div class="a-stat-label">Tasso risoluzione</div><div class="a-stat-delta delta-up">+2% vs mese scorso</div></div>
+        <div class="a-stat"><div class="a-stat-val" style="color:var(--blue)">3.2h</div><div class="a-stat-label">Risposta media</div><div class="a-stat-delta delta-up">-0.8h migliorato</div></div>
+        <div class="a-stat"><div class="a-stat-val" style="color:var(--purple)" id="stats-dl-val">—</div><div class="a-stat-label">Download Modrinth</div><div class="a-stat-delta delta-up">tutti i plugin</div></div>
+      </div>
+      <div class="a-row">
+        <div class="a-card">
+          <div class="a-card-title">Ticket per plugin</div>
+          <table class="a-table">
+            <tr><th>Plugin</th><th>Totale</th><th>Risolti</th><th>% successo</th></tr>
+            <tr><td>🏪 ShopEasy</td><td>12</td><td>10</td><td style="color:var(--green)">83%</td></tr>
+            <tr><td>🛡️ AntiGrief Pro</td><td>9</td><td>8</td><td style="color:var(--green)">89%</td></tr>
+            <tr><td>⚔️ CombatCore</td><td>7</td><td>7</td><td style="color:var(--green)">100%</td></tr>
+            <tr><td>🎯 QuestForge</td><td>6</td><td>5</td><td style="color:var(--amber)">83%</td></tr>
+            <tr><td style="color:var(--muted)">altri</td><td>8</td><td>8</td><td style="color:var(--green)">100%</td></tr>
+          </table>
+        </div>
+        <div class="a-card">
+          <div class="a-card-title">Download per plugin</div>
+          <table class="a-table" id="stats-dl-table">
+            <tr><th>Plugin</th><th>Download</th><th>% totale</th></tr>
+          </table>
+          <div style="margin-top:1.5rem">
+            <div class="a-card-title">Trend mensile ticket</div>
+            <div class="bar-wrap" id="bar-monthly" style="height:64px;margin-top:.5rem"></div>
+            <div style="display:flex;justify-content:space-between;margin-top:4px">
+              <span style="font-size:10px;color:var(--muted);font-family:var(--mono)">Gen</span>
+              <span style="font-size:10px;color:var(--muted);font-family:var(--mono)">Feb</span>
+              <span style="font-size:10px;color:var(--muted);font-family:var(--mono)">Mar</span>
+              <span style="font-size:10px;color:var(--muted);font-family:var(--mono)">Apr</span>
+              <span style="font-size:10px;color:var(--muted);font-family:var(--mono)">Mag</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /admin-body -->
+</div><!-- /admin-shell -->
+
+<!-- ══ SEARCH OVERLAY ══ -->
+<div class="search-overlay" id="search-overlay">
+  <div class="search-box">
+    <div class="search-input-wrap">
+      <span class="search-icon">🔍</span>
+      <input class="search-input" id="search-input" type="text"
+        placeholder="Cerca plugin, docs, pagine..."
+        oninput="Search.onInput(this.value)"
+        onkeydown="if(event.key==='Enter'){ const r=Search._results; if(r&&r[0]){Search._pick(0);} }"/>
+      <span class="search-kbd" onclick="Search.close()">Esc</span>
+    </div>
+    <div class="search-results" id="search-results"></div>
+    <div class="search-footer">
+      <div class="search-hint"><kbd>↵</kbd> seleziona</div>
+      <div class="search-hint"><kbd>Esc</kbd> chiudi</div>
+      <div class="search-hint"><kbd>Ctrl K</kbd> apri</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ AUTH MODAL ══ -->
+<div class="modal-bg" id="modal-auth">
+  <div class="modal" style="width:420px">
+    <div class="modal-header">
+      <span class="modal-title">Accesso a SIXsPlugins</span>
+      <button class="modal-close" onclick="AuthModal.close()">✕</button>
+    </div>
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="auth-tab-login"    onclick="AuthModal.switchTab('login')">Accedi</button>
+      <button class="auth-tab"        id="auth-tab-register" onclick="AuthModal.switchTab('register')">Registrati</button>
+    </div>
+
+    <!-- Login panel -->
+    <div id="auth-panel-login">
+      <div class="login-error auth-error" id="login-error"></div>
+      <div class="form-group">
+        <label class="form-label">Username o Email</label>
+        <input class="form-input" id="login-identifier" type="text" placeholder="Steve99 o steve@mc.net"
+          onkeydown="if(event.key==='Enter')AuthModal.doLogin()"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input class="form-input" id="login-password" type="password" placeholder="••••••••"
+          onkeydown="if(event.key==='Enter')AuthModal.doLogin()"/>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:1rem;font-family:var(--mono)">
+        Demo: <strong>Steve99</strong> / <strong>demo123</strong>
+      </div>
+      <button class="submit-btn" onclick="AuthModal.doLogin()">Accedi →</button>
+    </div>
+
+    <!-- Register panel -->
+    <div id="auth-panel-register" style="display:none">
+      <div class="login-error auth-error" id="reg-error"></div>
+      <div class="form-group">
+        <label class="form-label">Username</label>
+        <input class="form-input" id="reg-username" type="text" placeholder="es. Steve99"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input class="form-input" id="reg-email" type="email" placeholder="steve@example.com"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password <span style="text-transform:none;font-weight:400;font-size:10px">(min 6 caratteri)</span></label>
+        <input class="form-input" id="reg-password" type="password" placeholder="••••••••"/>
+      </div>
+      <button class="submit-btn" onclick="AuthModal.doRegister()">Crea account →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TICKET DETAIL MODAL (admin) ══ -->
+<div class="modal-bg" id="modal-ticket">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="mt-title">Ticket</span>
+      <button class="modal-close" onclick="document.getElementById('modal-ticket').classList.remove('open')">✕</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:1rem">
+      <div><div class="form-label">Plugin</div><div id="mt-plugin" style="font-size:13px"></div></div>
+      <div><div class="form-label">Stato</div><div id="mt-status" style="font-size:13px"></div></div>
+    </div>
+    <div style="margin-bottom:1rem">
+      <div class="form-label">Descrizione</div>
+      <div id="mt-desc" style="font-size:13px;color:var(--muted);background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 13px;line-height:1.6"></div>
+    </div>
+    <div style="margin-bottom:1rem">
+      <div class="form-label" style="margin-bottom:6px">Risposta rapida</div>
+      <textarea class="form-textarea" id="mt-reply" style="min-height:70px" placeholder="Scrivi la tua risposta..."></textarea>
+      <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+        <button class="a-btn a-btn-orange" onclick="Admin.sendTicketReply()">Invia risposta</button>
+        <button class="a-btn" onclick="Admin.changeTicketStatus('wip')">Segna In corso</button>
+        <button class="a-btn a-btn-red" onclick="Admin.changeTicketStatus('closed')">Chiudi Ticket</button>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <div class="form-label" style="margin-bottom:0">Chat live con l'utente</div>
+      <button class="a-btn a-btn-orange" id="chat-toggle-btn" onclick="Admin.toggleChat()">Abilita Chat</button>
+    </div>
+    <div id="chat-panel-wrap" style="display:none">
+      <div class="chat-panel">
+        <div class="cp-header">
+          <span class="cp-title" id="cp-title">Chat live</span>
+          <span style="font-size:11px;color:var(--green);font-family:var(--mono)">● connesso</span>
+        </div>
+        <div class="cp-msgs" id="cp-msgs"></div>
+        <div class="cp-input-row">
+          <input class="cp-inp" id="cp-inp" type="text" placeholder="Rispondi..."
+            onkeydown="if(event.key==='Enter')Admin.sendChatMsg()"/>
+          <button class="cp-send" onclick="Admin.sendChatMsg()">Invia</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ ADD PLUGIN MODAL (admin) ══ -->
+<div class="modal-bg" id="modal-addplugin">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Aggiungi Plugin</span>
+      <button class="modal-close" onclick="document.getElementById('modal-addplugin').classList.remove('open')">✕</button>
+    </div>
+    <div class="mg">
+      <label class="form-label">Nome plugin</label>
+      <input class="form-input" type="text" placeholder="es. MyPlugin"/>
+    </div>
+    <div class="mg">
+      <label class="form-label">Versione</label>
+      <input class="form-input" type="text" placeholder="es. v1.0.0"/>
+    </div>
+    <div class="mg">
+      <label class="form-label">Emoji icona</label>
+      <input class="form-input" type="text" placeholder="es. 🔧"/>
+    </div>
+    <div class="mg">
+      <label class="form-label">ID Modrinth <span style="text-transform:none;font-weight:400;font-size:10px">(opzionale)</span></label>
+      <input class="form-input" type="text" placeholder="es. AANobbyd"/>
+    </div>
+    <div class="mg">
+      <label class="form-label">Categoria</label>
+      <select class="form-select" id="modal-plugin-cat">
+        <option>Protection</option><option>Economy</option><option>PvP</option>
+        <option>RPG</option><option>Survival</option><option>Minigame</option>
+        <option>Analytics</option><option>Magic</option><option>Worlds</option><option>Factions</option>
+      </select>
+    </div>
+    <div class="mg">
+      <label class="form-label">Descrizione breve</label>
+      <textarea class="form-textarea" style="min-height:70px" placeholder="Descrizione per la home..."></textarea>
+    </div>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:.5rem">
+      💡 Dopo aver aggiunto il plugin, crea il file <span style="font-family:var(--mono);font-size:11px;background:rgba(255,255,255,.07);padding:1px 6px;border-radius:3px">plugins/nomeplugin.json</span> e aggiungilo a <span style="font-family:var(--mono);font-size:11px;background:rgba(255,255,255,.07);padding:1px 6px;border-radius:3px">plugins/index.json</span>.
+    </p>
+    <button class="a-btn-full"
+      onclick="document.getElementById('modal-addplugin').classList.remove('open');showToast('✓ Ricorda di creare il file JSON del plugin!')">
+      Aggiungi Plugin →
+    </button>
+  </div>
+</div>
+
+<!-- ══ TOAST ══ -->
+<div class="toast" id="toast">
+  <div class="toast-dot"></div>
+  <span id="toast-text">ok</span>
+</div>
+
+<!-- ══ SCRIPTS ══ -->
+<script src="js/plugins.js"></script>
+<script src="js/app.js"></script>
+<script>
+  // Patch: update plugin count label after load
+  const _origInit = PluginSystem.init.bind(PluginSystem);
+  // After init, update plugin count in stats bar
+  document.addEventListener('DOMContentLoaded', () => {
+    // Wait for PluginSystem.init() (called in app.js DOMContentLoaded)
+    // We hook into the home-plugin-label update
+    const observer = new MutationObserver(() => {
+      const plugins = PluginSystem.getAll();
+      if (plugins.length) {
+        const countEl = document.getElementById('home-plugin-count');
+        if (countEl) countEl.textContent = plugins.length;
+        const labelEl = document.getElementById('home-plugin-label');
+        if (labelEl) labelEl.textContent = `${plugins.length} plugin · tutti aggiornati`;
+        observer.disconnect();
+      }
+    });
+    const listEl = document.getElementById('home-plugin-list');
+    if (listEl) observer.observe(listEl, { childList: true });
+  });
+
+  // Docs grid filter
+  function filterDocsGrid(q) {
+    document.querySelectorAll('.doc-card').forEach(card => {
+      const text = card.textContent.toLowerCase();
+      card.style.display = text.includes(q.toLowerCase()) ? '' : 'none';
+    });
+  }
+
+  // User menu: update name/email when open
+  const _origToggle = UserMenu.toggle.bind(UserMenu);
+  UserMenu.toggle = function() {
+    const u = Auth.user();
+    if (u) {
+      const n = document.getElementById('um-name');
+      const e = document.getElementById('um-email');
+      if (n) n.textContent = u.username;
+      if (e) e.textContent = u.email;
+    }
+    _origToggle();
+  };
+
+  // My tickets: rebuild when page shown
+  const _origGoPage = SiteRouter.goPage.bind(SiteRouter);
+  SiteRouter.goPage = function(name, idx) {
+    _origGoPage(name, idx);
+    if (name === 'my-tickets') MyTickets.build();
+  };
+</script>
+</body>
+</html>

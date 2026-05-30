@@ -1,0 +1,95 @@
+{
+  "id": "combatcore",
+  "name": "CombatCore",
+  "icon": "⚔️",
+  "version": "v1.9.0",
+  "category": "PvP",
+  "categoryTag": "tag-a",
+  "description": "Sistema di combattimento personalizzabile con stats, abilità e cooldown avanzati.",
+  "modrinthId": "",
+  "requiresVersion": "Paper 1.20+",
+  "dependencies": "Nessuna",
+  "hasPermissions": true,
+  "visible": true,
+  "docs": {
+    "overview": {
+      "title": "Panoramica",
+      "icon": "📋",
+      "content": [
+        {
+          "type": "paragraph",
+          "text": "Documentazione in arrivo. Modifica questo file JSON per aggiungere contenuti."
+        }
+      ]
+    },
+    "install": {
+      "title": "Installazione",
+      "icon": "📦",
+      "content": [
+        {
+          "type": "paragraph",
+          "text": "Copia <code>CombatCore-v1.9.0.jar</code> nella cartella <code>plugins/</code> del server e riavvia."
+        },
+        {
+          "type": "callout",
+          "style": "warn",
+          "title": "⚠️ Attenzione",
+          "text": "Non usare /reload — riavvia sempre il server."
+        }
+      ]
+    },
+    "config": {
+      "title": "Configurazione",
+      "icon": "⚙️",
+      "content": [
+        {
+          "type": "paragraph",
+          "text": "Dopo il primo avvio troverai il file di configurazione in <code>plugins/CombatCore/config.yml</code>."
+        }
+      ]
+    },
+    "commands": {
+      "title": "Comandi & Permessi",
+      "icon": "💬",
+      "content": [
+        {
+          "type": "paragraph",
+          "text": "Lista comandi in arrivo. Modifica questo file JSON per aggiungere la tabella."
+        }
+      ]
+    },
+    "faq": {
+      "title": "FAQ",
+      "icon": "❓",
+      "content": [
+        {
+          "type": "faq",
+          "items": [
+            {
+              "question": "Come ottengo supporto?",
+              "answer": "Apri un ticket dalla sezione apposita del sito."
+            }
+          ]
+        }
+      ]
+    },
+    "changelog": {
+      "title": "Changelog",
+      "icon": "📝",
+      "content": [
+        {
+          "type": "changelog",
+          "entries": [
+            {
+              "version": "v1.9.0",
+              "date": "2025",
+              "changes": [
+                "Release iniziale"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

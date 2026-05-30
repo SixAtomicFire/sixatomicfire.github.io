@@ -1,0 +1,93 @@
+{
+  "id": "shopeasy",
+  "name": "ShopEasy",
+  "icon": "🏪",
+  "version": "v3.1.2",
+  "category": "Economy",
+  "categoryTag": "tag-b",
+  "description": "Negozio GUI drag-and-drop con supporto MySQL e prezzi dinamici basati sulla domanda.",
+  "modrinthId": "",
+  "requiresVersion": "Paper 1.20+",
+  "dependencies": "Vault",
+  "hasPermissions": true,
+  "visible": true,
+
+  "docs": {
+    "overview": {
+      "title": "Panoramica",
+      "icon": "📋",
+      "content": [
+        { "type": "paragraph", "text": "ShopEasy offre un sistema di negozio GUI completamente configurabile, con supporto per MySQL, prezzi dinamici, categorie, sconti e integrazione Vault per l'economia." },
+        { "type": "callout", "style": "info", "title": "💡 Info", "text": "Richiede Vault e un plugin economia (EssentialsX Economy, CMI, ecc.)." },
+        { "type": "heading", "text": "Caratteristiche principali" },
+        { "type": "list", "items": ["GUI drag-and-drop per configurare il negozio in-game", "Prezzi dinamici basati sulla domanda del mercato", "Supporto MySQL per dati condivisi su network", "Sconti a tempo configurabili", "Categorie e sotto-categorie illimitate", "Integrazione completa con Vault"] }
+      ]
+    },
+    "install": {
+      "title": "Installazione",
+      "icon": "📦",
+      "content": [
+        { "type": "paragraph", "text": "Assicurati di avere <code>Vault</code> installato prima di ShopEasy. Copia <code>ShopEasy-3.1.2.jar</code> in <code>plugins/</code> e riavvia." },
+        { "type": "code", "language": "text", "lines": [
+          { "type": "key",   "text": "plugins/" },
+          { "type": "key",   "text": "└── ShopEasy/" },
+          { "type": "value", "text": "    ├── config.yml" },
+          { "type": "value", "text": "    ├── shops/",        "comment": "negozi configurati" },
+          { "type": "value", "text": "    └── items.yml",     "comment": "catalogo oggetti" }
+        ]}
+      ]
+    },
+    "config": {
+      "title": "Configurazione",
+      "icon": "⚙️",
+      "content": [
+        { "type": "heading", "text": "Configurazione MySQL" },
+        { "type": "code", "language": "yaml", "lines": [
+          { "type": "key",   "text": "database:" },
+          { "type": "value", "text": "  type: mysql" },
+          { "type": "value", "text": "  host: localhost" },
+          { "type": "value", "text": "  port: 3306" },
+          { "type": "value", "text": "  name: shopeasy" },
+          { "type": "value", "text": "  user: root" },
+          { "type": "value", "text": "  pass: password" },
+          { "type": "plain", "text": "" },
+          { "type": "key",   "text": "dynamic-prices:" },
+          { "type": "value", "text": "  enabled: true" },
+          { "type": "value", "text": "  fluctuation: 15",    "comment": "% max variazione" }
+        ]}
+      ]
+    },
+    "commands": {
+      "title": "Comandi & Permessi",
+      "icon": "💬",
+      "content": [
+        { "type": "table", "headers": ["Comando", "Permesso", "Descrizione"], "rows": [
+          ["/shop",              "shopeasy.use",   "Apre il negozio principale"],
+          ["/shop <nome>",       "shopeasy.use",   "Apre un negozio specifico"],
+          ["/shopadmin create",  "shopeasy.admin", "Crea un nuovo negozio"],
+          ["/shopadmin reload",  "shopeasy.admin", "Ricarica config e negozi"]
+        ]}
+      ]
+    },
+    "faq": {
+      "title": "FAQ",
+      "icon": "❓",
+      "content": [
+        { "type": "faq", "items": [
+          { "question": "I prezzi non si aggiornano dopo /reload", "answer": "Usa <code>/shopadmin reload</code> invece di /reload del server. Il /reload di Bukkit non esegue correttamente la reinizializzazione del database." },
+          { "question": "La GUI non si apre", "answer": "Verifica che Vault sia installato e che ci sia un plugin economia attivo. Controlla il log del server per errori di connessione al database." }
+        ]}
+      ]
+    },
+    "changelog": {
+      "title": "Changelog",
+      "icon": "📝",
+      "content": [
+        { "type": "changelog", "entries": [
+          { "version": "v3.1.2", "date": "22 mag 2025", "changes": ["Fix GUI su /reload server", "Migliorata cache prezzi dinamici"] },
+          { "version": "v3.1.0", "date": "1 mar 2025",  "changes": ["Aggiunto sistema sconti a tempo", "Nuova pagina Offerte nella GUI"] }
+        ]}
+      ]
+    }
+  }
+}
