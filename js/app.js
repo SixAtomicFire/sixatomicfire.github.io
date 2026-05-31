@@ -1,12 +1,12 @@
 /* ══════════════════════════════════════
    SIXsPlugins — app.js
-   Routing, auth, search, ticket, admin
+   Routing, auth reale (Supabase), ticket,
+   admin, search
    ══════════════════════════════════════ */
 
 /* ── ROUTER ─────────────────────────────────────────────────────────────── */
 const SiteRouter = (() => {
   let _current = 'home';
-
   function goPage(name, tabIdx) {
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
@@ -19,76 +19,86 @@ const SiteRouter = (() => {
     _current = name;
     window.scrollTo(0, 0);
   }
-
   function current() { return _current; }
   return { goPage, current };
 })();
 
-/* ── AUTH ────────────────────────────────────────────────────────────────── */
+/* ── AUTH (Supabase) ─────────────────────────────────────────────────────── */
 const Auth = (() => {
-  const STORAGE_KEY = 'six_user';
+  let _user    = null;   // supabase user object
+  let _profile = null;   // { username }
 
-  const DEMO_USERS = [
-    { username: 'Steve99',  email: 'steve99@mc.net',   password: 'demo123' },
-    { username: 'Alex_MC',  email: 'alex@example.com', password: 'demo123' },
-  ];
+  // Chiamato all'avvio per caricare la sessione esistente
+  async function load() {
+    const session = await SupaAuth.getSession();
+    if (session) {
+      _user = session.user;
+      _profile = await SupaAuth.getProfile(_user.id);
+    }
+    updateNavUser();
 
-  let _current = null;
+    // Ascolta cambi auth in tempo reale
+    SupaAuth.onAuthChange(async (event, session) => {
+      if (session) {
+        _user    = session.user;
+        _profile = await SupaAuth.getProfile(_user.id);
+      } else {
+        _user    = null;
+        _profile = null;
+      }
+      updateNavUser();
+    });
+  }
 
-  function load() {
+  async function login(emailOrUser, password) {
+    // Supabase vuole email — se l'utente inserisce username, gestiscilo lato client
+    const email = emailOrUser.includes('@') ? emailOrUser : emailOrUser + '@sixsplugins.local';
     try {
-      const raw = sessionStorage.getItem(STORAGE_KEY);
-      if (raw) _current = JSON.parse(raw);
-    } catch {}
+      await SupaAuth.signIn(email, password);
+      return true;
+    } catch {
+      // Prova con email esatta
+      try {
+        await SupaAuth.signIn(emailOrUser, password);
+        return true;
+      } catch {
+        return false;
+      }
+    }
   }
 
-  function save() {
-    if (_current) sessionStorage.setItem(STORAGE_KEY, JSON.stringify(_current));
-    else sessionStorage.removeItem(STORAGE_KEY);
+  async function register(username, email, password) {
+    try {
+      await SupaAuth.signUp(username, email, password);
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, msg: err.message };
+    }
   }
 
-  function login(emailOrUser, password) {
-    const u = DEMO_USERS.find(u =>
-      (u.email === emailOrUser || u.username === emailOrUser) && u.password === password
-    );
-    if (!u) return false;
-    _current = { username: u.username, email: u.email };
-    save();
-    updateNavUser();
-    return true;
-  }
-
-  function register(username, email, password) {
-    if (DEMO_USERS.find(u => u.email === email || u.username === username)) return false;
-    DEMO_USERS.push({ username, email, password });
-    _current = { username, email };
-    save();
-    updateNavUser();
-    return true;
-  }
-
-  function logout() {
-    _current = null;
-    save();
+  async function logout() {
+    await SupaAuth.signOut();
+    _user    = null;
+    _profile = null;
     updateNavUser();
     SiteRouter.goPage('home', 0);
   }
 
-  function isLoggedIn() { return !!_current; }
-  function user()       { return _current; }
+  function isLoggedIn() { return !!_user; }
+  function user()       { return _user; }
+  function username()   { return _profile?.username || _user?.email?.split('@')[0] || 'Utente'; }
 
   function updateNavUser() {
     const btn = document.getElementById('nav-user-btn');
     if (!btn) return;
-    if (_current) {
-      btn.textContent = '👤 ' + _current.username;
+    if (_user) {
+      btn.textContent = '👤 ' + username();
       btn.classList.add('logged-in');
       btn.onclick = () => UserMenu.toggle();
-      // Aggiorna nome/email nel dropdown
       const n = document.getElementById('um-name');
       const e = document.getElementById('um-email');
-      if (n) n.textContent = _current.username;
-      if (e) e.textContent = _current.email;
+      if (n) n.textContent = username();
+      if (e) e.textContent = _user.email;
     } else {
       btn.textContent = '🔑 Accedi';
       btn.classList.remove('logged-in');
@@ -96,7 +106,7 @@ const Auth = (() => {
     }
   }
 
-  return { load, login, register, logout, isLoggedIn, user, updateNavUser };
+  return { load, login, register, logout, isLoggedIn, user, username, updateNavUser };
 })();
 
 /* ── AUTH MODAL ──────────────────────────────────────────────────────────── */
@@ -105,11 +115,8 @@ const AuthModal = (() => {
     document.getElementById('modal-auth').classList.add('open');
     switchTab(tab);
     clearErrors();
-    // Focus sul primo campo
     setTimeout(() => {
-      const first = document.getElementById(
-        tab === 'login' ? 'login-identifier' : 'reg-username'
-      );
+      const first = document.getElementById(tab === 'login' ? 'login-identifier' : 'reg-username');
       if (first) first.focus();
     }, 60);
   }
@@ -128,43 +135,66 @@ const AuthModal = (() => {
   }
 
   function clearErrors() {
-    document.querySelectorAll('.auth-error').forEach(e => e.style.display = 'none');
+    document.querySelectorAll('.auth-error').forEach(e => {
+      e.style.display = 'none';
+      e.textContent   = '';
+    });
   }
 
-  function doLogin() {
+  async function doLogin() {
     const id  = document.getElementById('login-identifier').value.trim();
     const pwd = document.getElementById('login-password').value;
     const err = document.getElementById('login-error');
     if (!id || !pwd) { showError(err, 'Compila tutti i campi.'); return; }
-    if (Auth.login(id, pwd)) {
+
+    const btn = document.querySelector('#auth-panel-login .submit-btn');
+    setLoading(btn, true, 'Accesso in corso...');
+
+    const ok = await Auth.login(id, pwd);
+    setLoading(btn, false, 'Accedi →');
+
+    if (ok) {
       close();
-      showToast('✓ Bentornato, ' + Auth.user().username + '!');
+      showToast('✓ Bentornato, ' + Auth.username() + '!');
     } else {
-      showError(err, 'Credenziali non valide.');
+      showError(err, 'Email o password non validi.');
     }
   }
 
-  function doRegister() {
-    const user  = document.getElementById('reg-username').value.trim();
-    const email = document.getElementById('reg-email').value.trim();
-    const pwd   = document.getElementById('reg-password').value;
-    const err   = document.getElementById('reg-error');
-    if (!user || !email || !pwd) { showError(err, 'Compila tutti i campi.'); return; }
-    if (pwd.length < 6) { showError(err, 'Password minima 6 caratteri.'); return; }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      showError(err, 'Email non valida.'); return;
-    }
-    if (Auth.register(user, email, pwd)) {
+  async function doRegister() {
+    const username = document.getElementById('reg-username').value.trim();
+    const email    = document.getElementById('reg-email').value.trim();
+    const pwd      = document.getElementById('reg-password').value;
+    const err      = document.getElementById('reg-error');
+
+    if (!username || !email || !pwd) { showError(err, 'Compila tutti i campi.'); return; }
+    if (pwd.length < 6)              { showError(err, 'Password minima 6 caratteri.'); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showError(err, 'Email non valida.'); return; }
+
+    const btn = document.querySelector('#auth-panel-register .submit-btn');
+    setLoading(btn, true, 'Registrazione...');
+
+    const result = await Auth.register(username, email, pwd);
+    setLoading(btn, false, 'Crea account →');
+
+    if (result.ok) {
       close();
-      showToast('✓ Account creato! Benvenuto, ' + user + '!');
+      showToast('✓ Account creato! Controlla la tua email per confermare.');
     } else {
-      showError(err, 'Username o email già in uso.');
+      showError(err, result.msg || 'Errore durante la registrazione.');
     }
   }
 
   function showError(el, msg) {
-    el.textContent = msg;
+    el.textContent   = msg;
     el.style.display = 'block';
+  }
+
+  function setLoading(btn, loading, label) {
+    if (!btn) return;
+    btn.disabled     = loading;
+    btn.textContent  = label;
+    btn.style.opacity = loading ? '0.7' : '1';
   }
 
   return { open, close, switchTab, doLogin, doRegister };
@@ -175,70 +205,70 @@ const UserMenu = (() => {
   function toggle() {
     document.getElementById('user-menu').classList.toggle('open');
   }
-
   function close() {
     document.getElementById('user-menu')?.classList.remove('open');
   }
-
   function goMyTickets() {
     close();
     if (!Auth.isLoggedIn()) { AuthModal.open('login'); return; }
-    // FIX: era buildMyTickets() (inesistente) → MyTickets.build()
     MyTickets.build();
     SiteRouter.goPage('my-tickets', -1);
   }
-
   return { toggle, close, goMyTickets };
 })();
 
 /* ── MY TICKETS ──────────────────────────────────────────────────────────── */
 const MyTickets = (() => {
-  const DEMO = {
-    'Steve99': [
-      { id:'#0042', plugin:'ShopEasy',   title:'Prezzi non si aggiornano su /reload', status:'open',   date:'2h fa',      priority:'Media' },
-      { id:'#0039', plugin:'CombatCore', title:'Cooldown non funziona con Velocity',  status:'closed', date:'5 giorni fa', priority:'Alta'  },
-    ],
-    'Alex_MC': [
-      { id:'#0043', plugin:'ShopEasy',   title:'GUI non si apre dopo /reload',        status:'open',   date:'1h fa',       priority:'Media' },
-    ],
-  };
-
-  function build() {
+  async function build() {
     const wrap = document.getElementById('my-tickets-list');
     if (!wrap) return;
-    const user = Auth.user();
-    if (!user) return;
-    const tickets = DEMO[user.username] || [];
 
-    if (!tickets.length) {
-      wrap.innerHTML = `
-        <div class="empty-state">
-          <div class="empty-state-icon">🎫</div>
-          <h3>Nessun ticket aperto</h3>
-          <p>Non hai ancora aperto nessun ticket.<br>Se hai un problema, aprine uno!</p>
-          <button class="btn-primary" style="margin-top:1.25rem"
-            onclick="SiteRouter.goPage('ticket',2)">
-            Apri il primo ticket
-          </button>
-        </div>`;
+    if (!Auth.isLoggedIn()) {
+      wrap.innerHTML = `<div class="empty-state">
+        <div class="empty-state-icon">🔑</div>
+        <h3>Accedi per vedere i tuoi ticket</h3>
+        <button class="btn-primary" style="margin-top:1rem" onclick="AuthModal.open('login')">Accedi</button>
+      </div>`;
       return;
     }
 
-    wrap.innerHTML = tickets.map(t => `
-      <div class="ticket-item">
-        <div class="t-dot t-${t.status}"></div>
-        <div class="t-info">
-          <div class="t-title">${t.plugin} — ${t.title}</div>
-          <div class="t-meta">${t.id} · ${t.date}</div>
-        </div>
-        <span class="tag tag-a" style="font-size:10px;margin-right:6px">${t.priority}</span>
-        <span class="t-badge" style="${statusStyle(t.status)}">${statusLabel(t.status)}</span>
-      </div>`).join('');
+    wrap.innerHTML = `<div style="text-align:center;padding:2rem;color:var(--muted)">Caricamento...</div>`;
+
+    try {
+      const tickets = await SupaTickets.getMyTickets();
+
+      if (!tickets.length) {
+        wrap.innerHTML = `<div class="empty-state">
+          <div class="empty-state-icon">🎫</div>
+          <h3>Nessun ticket aperto</h3>
+          <p>Non hai ancora aperto nessun ticket.</p>
+          <button class="btn-primary" style="margin-top:1.25rem"
+            onclick="SiteRouter.goPage('ticket',2)">Apri il primo ticket</button>
+        </div>`;
+        return;
+      }
+
+      wrap.innerHTML = tickets.map(t => `
+        <div class="ticket-item">
+          <div class="t-dot t-${t.status}"></div>
+          <div class="t-info">
+            <div class="t-title">${escHtml(t.plugin)} — ${escHtml(t.title)}</div>
+            <div class="t-meta">#${t.id} · ${timeAgo(t.created_at)}</div>
+          </div>
+          <span class="tag tag-a" style="font-size:10px;margin-right:6px">${priorityLabel(t.priority)}</span>
+          <span class="t-badge" style="${statusStyle(t.status)}">${statusLabel(t.status)}</span>
+        </div>`).join('');
+    } catch (err) {
+      wrap.innerHTML = `<div class="empty-state">
+        <div class="empty-state-icon">⚠️</div>
+        <h3>Errore caricamento ticket</h3>
+        <p>${escHtml(err.message)}</p>
+      </div>`;
+    }
   }
 
-  function statusLabel(s) {
-    return s === 'open' ? 'Aperto' : s === 'wip' ? 'In corso' : 'Chiuso';
-  }
+  function statusLabel(s)  { return s === 'open' ? 'Aperto' : s === 'wip' ? 'In corso' : 'Chiuso'; }
+  function priorityLabel(p){ return p === 'high' ? 'Alta' : p === 'medium' ? 'Media' : 'Bassa'; }
   function statusStyle(s) {
     if (s === 'open') return 'background:var(--orange-dim);color:var(--orange)';
     if (s === 'wip')  return 'background:var(--amber-dim);color:var(--amber)';
@@ -255,7 +285,6 @@ const Search = (() => {
     { type:'page', icon:'📖', title:'Documentazione',  sub:'Guide per tutti i plugin',     tag:'Pagina', tagClass:'tag-o', action: () => SiteRouter.goPage('docs', 1)   },
     { type:'page', icon:'🏠', title:'Home',             sub:'Torna alla pagina principale', tag:'Pagina', tagClass:'tag-o', action: () => SiteRouter.goPage('home', 0)   },
   ];
-
   let _debounce = null;
   let _results  = [];
 
@@ -263,14 +292,12 @@ const Search = (() => {
     document.getElementById('search-overlay').classList.add('open');
     setTimeout(() => document.getElementById('search-input')?.focus(), 50);
   }
-
   function close() {
     document.getElementById('search-overlay').classList.remove('open');
     const inp = document.getElementById('search-input');
     if (inp) inp.value = '';
     _render([]);
   }
-
   function onInput(val) {
     clearTimeout(_debounce);
     _debounce = setTimeout(() => {
@@ -283,50 +310,38 @@ const Search = (() => {
       _render([...pluginResults, ...staticResults]);
     }, 120);
   }
-
   function _render(results) {
     _results = results;
     const cont = document.getElementById('search-results');
     if (!cont) return;
-
     if (!results.length) {
       const q = document.getElementById('search-input')?.value || '';
       cont.innerHTML = q.length >= 2
-        ? `<div class="search-empty">Nessun risultato per "<strong>${q}</strong>"</div>`
+        ? `<div class="search-empty">Nessun risultato per "<strong>${escHtml(q)}</strong>"</div>`
         : '';
       return;
     }
-
     const groups = {};
-    results.forEach(r => {
-      if (!groups[r.type]) groups[r.type] = [];
-      groups[r.type].push(r);
-    });
-
+    results.forEach(r => { if (!groups[r.type]) groups[r.type] = []; groups[r.type].push(r); });
     const typeLabel = { plugin:'Plugin', doc:'Documentazione', page:'Pagine' };
-
     cont.innerHTML = Object.entries(groups).map(([type, items]) => `
       <div class="search-section-label">${typeLabel[type] || type}</div>
       ${items.map(item => {
         const idx = results.indexOf(item);
-        return `
-          <div class="search-result-item" onclick="Search.pick(${idx})">
-            <div class="search-result-icon">${item.icon}</div>
-            <div class="search-result-info">
-              <div class="search-result-title">${item.title}</div>
-              <div class="search-result-sub">${item.sub}</div>
-            </div>
-            <span class="search-result-tag tag ${item.tagClass}">${item.tag}</span>
-          </div>`;
-      }).join('')}
-    `).join('');
+        return `<div class="search-result-item" onclick="Search.pick(${idx})">
+          <div class="search-result-icon">${item.icon}</div>
+          <div class="search-result-info">
+            <div class="search-result-title">${escHtml(item.title)}</div>
+            <div class="search-result-sub">${escHtml(item.sub)}</div>
+          </div>
+          <span class="search-result-tag tag ${item.tagClass}">${item.tag}</span>
+        </div>`;
+      }).join('')}`).join('');
   }
-
   function pick(idx) {
     const r = _results[idx];
     if (r) { close(); r.action(); }
   }
-
   return { open, close, onInput, pick };
 })();
 
@@ -337,6 +352,7 @@ const TicketForm = (() => {
   function selPrio(el, cls) {
     document.querySelectorAll('.prio-btn').forEach(b => b.className = 'prio-btn');
     el.classList.add(cls);
+    el.dataset.selected = cls;
   }
 
   function handleFiles(input) {
@@ -356,12 +372,78 @@ const TicketForm = (() => {
     cont.innerHTML = _files.map((f, i) => `
       <div class="file-item">
         <span style="font-size:14px">${fileIcon(f.name)}</span>
-        <span class="file-item-name">${f.name}</span>
-        <span style="font-size:11px;color:var(--muted);font-family:var(--mono);flex-shrink:0">
-          ${fmtSize(f.size)}
-        </span>
+        <span class="file-item-name">${escHtml(f.name)}</span>
+        <span style="font-size:11px;color:var(--muted);font-family:var(--mono);flex-shrink:0">${fmtSize(f.size)}</span>
         <button class="file-item-remove" onclick="TicketForm.removeFile(${i})">✕</button>
       </div>`).join('');
+  }
+
+  function getPriority() {
+    const sel = document.querySelector('.prio-btn.sel-l, .prio-btn.sel-m, .prio-btn.sel-h');
+    if (!sel) return 'low';
+    if (sel.classList.contains('sel-h')) return 'high';
+    if (sel.classList.contains('sel-m')) return 'medium';
+    return 'low';
+  }
+
+  async function submit() {
+    const userField  = document.getElementById('ticket-user')?.value.trim();
+    const pluginSel  = document.getElementById('ticket-plugin-sel');
+    const plugin     = pluginSel?.value;
+    const mcVersion  = document.getElementById('ticket-mc-version')?.value.trim();
+    const title      = document.getElementById('ticket-title')?.value.trim();
+    const desc       = document.getElementById('ticket-desc')?.value.trim();
+    const priority   = getPriority();
+
+    if (!userField)                       { showToast('⚠️ Inserisci il tuo username o email.'); return; }
+    if (!plugin || plugin.startsWith('—')){ showToast('⚠️ Seleziona un plugin.'); return; }
+    if (!title)                           { showToast('⚠️ Inserisci un titolo.'); return; }
+    if (!desc)                            { showToast('⚠️ Inserisci una descrizione.'); return; }
+
+    const btn = document.querySelector('#page-ticket .submit-btn');
+    setLoading(btn, true, 'Invio in corso...');
+
+    try {
+      const userId = Auth.isLoggedIn() ? Auth.user().id : null;
+      const ticket = await SupaTickets.create({
+        userId,
+        username:    userField,
+        plugin,
+        mcVersion:   mcVersion || null,
+        title,
+        description: desc,
+        priority,
+      });
+
+      // Upload allegati se presenti
+      if (_files.length > 0) {
+        await Promise.allSettled(_files.map(f => SupaStorage.upload(ticket.id, f)));
+      }
+
+      // Reset form
+      document.getElementById('ticket-user').value  = '';
+      document.getElementById('ticket-title').value = '';
+      document.getElementById('ticket-desc').value  = '';
+      if (document.getElementById('ticket-mc-version'))
+        document.getElementById('ticket-mc-version').value = '';
+      pluginSel.selectedIndex = 0;
+      const fileInput = document.querySelector('.file-upload-area input[type=file]');
+      if (fileInput) fileInput.value = '';
+      _files = [];
+      renderFileList();
+      document.querySelectorAll('.prio-btn').forEach(b => b.className = 'prio-btn');
+      document.querySelector('.prio-btn')?.classList.add('sel-l');
+
+      showToast('✓ Ticket #' + ticket.id + ' inviato! Risposta entro 4 ore.');
+
+      // Aggiorna lista ticket se loggato
+      if (Auth.isLoggedIn()) MyTickets.build();
+
+    } catch (err) {
+      showToast('❌ Errore: ' + err.message);
+    } finally {
+      setLoading(btn, false, 'Invia Ticket →');
+    }
   }
 
   function fileIcon(name) {
@@ -371,42 +453,10 @@ const TicketForm = (() => {
     if (ext === 'zip') return '📦';
     return '📎';
   }
-
   function fmtSize(bytes) {
     if (bytes < 1024) return bytes + ' B';
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-  }
-
-  function submit() {
-    // FIX: aggiunto controllo sul campo username
-    const userField = document.getElementById('ticket-user')?.value.trim();
-    const plugin = document.getElementById('ticket-plugin-sel')?.value;
-    const title  = document.getElementById('ticket-title')?.value.trim();
-    const desc   = document.getElementById('ticket-desc')?.value.trim();
-
-    if (!userField) { showToast('⚠️ Inserisci il tuo username o email.'); return; }
-    if (!plugin || plugin.startsWith('—')) { showToast('⚠️ Seleziona un plugin.'); return; }
-    if (!title)  { showToast('⚠️ Inserisci un titolo.'); return; }
-    if (!desc)   { showToast('⚠️ Inserisci una descrizione.'); return; }
-
-    // Reset form completo
-    document.getElementById('ticket-user').value  = '';
-    document.getElementById('ticket-title').value = '';
-    document.getElementById('ticket-desc').value  = '';
-    document.getElementById('ticket-plugin-sel').selectedIndex = 0;
-
-    // FIX: reset anche il file input nel DOM
-    const fileInput = document.querySelector('.file-upload-area input[type=file]');
-    if (fileInput) fileInput.value = '';
-    _files = [];
-    renderFileList();
-
-    // Reset priorità
-    document.querySelectorAll('.prio-btn').forEach(b => b.className = 'prio-btn');
-    document.querySelector('.prio-btn')?.classList.add('sel-l');
-
-    showToast('✓ Ticket inviato! Risposta entro 4 ore.');
   }
 
   return { selPrio, handleFiles, removeFile, submit };
@@ -414,7 +464,8 @@ const TicketForm = (() => {
 
 /* ── ADMIN ───────────────────────────────────────────────────────────────── */
 const Admin = (() => {
-  let _pluginsReady = false;
+  let _chatChannel = null;
+  let _currentTicketId = null;
 
   function showLogin() {
     document.getElementById('public-site').style.display  = 'none';
@@ -422,25 +473,28 @@ const Admin = (() => {
     document.getElementById('admin-shell').style.display  = 'none';
     setTimeout(() => document.getElementById('l-user')?.focus(), 60);
   }
-
-  function showShell() {
+  function showPublic() {
+    document.getElementById('public-site').style.display  = '';
+    document.getElementById('admin-login').style.display  = 'none';
+    document.getElementById('admin-shell').style.display  = 'none';
+  }
+  async function showShell() {
     document.getElementById('public-site').style.display  = 'none';
     document.getElementById('admin-login').style.display  = 'none';
     document.getElementById('admin-shell').style.display  = 'flex';
     buildCharts();
-    // FIX: ricostruisce le tabelle solo se i plugin sono già caricati
+    await loadDashboard();
     if (PluginSystem.getAll().length > 0) {
       PluginSystem.buildAdminPluginsTable();
       PluginSystem.buildAdminDlTable();
       PluginSystem.buildStatsDlTable();
       PluginSystem.updateHomeStats();
     }
-  }
-
-  function showPublic() {
-    document.getElementById('public-site').style.display  = '';
-    document.getElementById('admin-login').style.display  = 'none';
-    document.getElementById('admin-shell').style.display  = 'none';
+    // Realtime: aggiorna tabella ticket su nuovi inserimenti
+    SupaRealtime.subscribeTickets(
+      () => loadTicketsTable(),
+      () => loadTicketsTable()
+    );
   }
 
   function doLogin() {
@@ -456,107 +510,250 @@ const Admin = (() => {
       err.style.display = 'block';
     }
   }
-
   function doLogout() {
     sessionStorage.removeItem('six_admin');
+    SupaRealtime.unsubscribe();
     location.hash = '';
     showPublic();
   }
-
   function aPage(name, el) {
     document.querySelectorAll('.admin-page').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
     const pg = document.getElementById('ap-' + name);
     if (pg) pg.classList.add('active');
     if (el) el.classList.add('active');
+    // Carica dati per la tab
+    if (name === 'tickets') loadTicketsTable();
+    if (name === 'stats')   loadStats();
   }
 
-  function filterTickets(val) {
-    document.querySelectorAll('#ap-tickets table tr[data-status]').forEach(r => {
-      r.style.display = (val === 'all' || r.dataset.status === val) ? '' : 'none';
-    });
+  // ── Dashboard ──
+  async function loadDashboard() {
+    try {
+      const counts = await SupaTickets.getCounts();
+      const openEl   = document.getElementById('adm-count-open');
+      const wipEl    = document.getElementById('adm-count-wip');
+      const closedEl = document.getElementById('adm-count-closed');
+      if (openEl)   openEl.textContent   = counts.open;
+      if (wipEl)    wipEl.textContent    = counts.wip;
+      if (closedEl) closedEl.textContent = counts.closed;
+      await loadTicketsPreview();
+    } catch {}
   }
 
-  function filterUsers(q) {
-    document.querySelectorAll('#users-table tr:not(:first-child)').forEach(r => {
-      r.style.display = r.textContent.toLowerCase().includes(q.toLowerCase()) ? '' : 'none';
-    });
+  async function loadTicketsPreview() {
+    const tbody = document.getElementById('adm-recent-tickets');
+    if (!tbody) return;
+    try {
+      const tickets = await SupaTickets.getAll({ status: 'all' });
+      const recent  = tickets.slice(0, 5);
+      if (!recent.length) {
+        tbody.innerHTML = `<tr><td colspan="6" style="color:var(--muted);text-align:center">Nessun ticket ancora</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = recent.map(t => `
+        <tr>
+          <td style="color:var(--muted);font-family:var(--mono)">#${t.id}</td>
+          <td>${escHtml(t.plugin)}</td>
+          <td>${escHtml(t.title)}</td>
+          <td><span class="tag ${priorityTagClass(t.priority)}" style="font-size:10px">${priorityLabel(t.priority)}</span></td>
+          <td><span class="sdot sdot-${t.status}"></span>${statusLabel(t.status)}</td>
+          <td><button class="a-btn a-btn-orange" onclick="Admin.openTicketDetail(${t.id})">Apri</button></td>
+        </tr>`).join('');
+    } catch {}
   }
 
-  function changeStatus(btn, st) {
-    const map = { open:'Aperto', wip:'In corso', closed:'Chiuso' };
-    const dot = { open:'sdot-open', wip:'sdot-wip', closed:'sdot-closed' };
-    const tr  = btn.closest('tr');
-    // FIX: usa data attribute invece dell'indice fisso [5]
-    const sdot   = tr.querySelector('.sdot');
-    const statoTd = tr.querySelector('td[data-col="stato"]');
-    if (sdot) sdot.className = 'sdot ' + dot[st];
-    if (statoTd) statoTd.innerHTML = `<span class="sdot ${dot[st]}"></span>${map[st]}`;
-    tr.dataset.status = st;
-    showToast('Stato aggiornato: ' + map[st]);
+  // ── Tickets table ──
+  async function loadTicketsTable(filterStatus = 'all') {
+    const tbody = document.getElementById('adm-tickets-tbody');
+    if (!tbody) return;
+    tbody.innerHTML = `<tr><td colspan="8" style="color:var(--muted);text-align:center;padding:1.5rem">Caricamento...</td></tr>`;
+    try {
+      const tickets = await SupaTickets.getAll({ status: filterStatus });
+      if (!tickets.length) {
+        tbody.innerHTML = `<tr><td colspan="8" style="color:var(--muted);text-align:center;padding:1.5rem">Nessun ticket trovato</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = tickets.map(t => `
+        <tr data-status="${t.status}" data-id="${t.id}">
+          <td style="color:var(--muted);font-family:var(--mono)">#${t.id}</td>
+          <td>${escHtml(t.username)}</td>
+          <td>${escHtml(t.plugin)}</td>
+          <td>${escHtml(t.title)}</td>
+          <td><span class="tag ${priorityTagClass(t.priority)}" style="font-size:10px">${priorityLabel(t.priority)}</span></td>
+          <td data-col="stato"><span class="sdot sdot-${t.status}"></span>${statusLabel(t.status)}</td>
+          <td style="color:var(--muted);font-size:11px">${timeAgo(t.created_at)}</td>
+          <td style="display:flex;gap:6px;flex-wrap:wrap">
+            <button class="a-btn a-btn-orange" onclick="Admin.openTicketDetail(${t.id})">Apri</button>
+            ${t.status !== 'closed' ? `<button class="a-btn a-btn-red" onclick="Admin.quickClose(${t.id},this)">Chiudi</button>` : ''}
+          </td>
+        </tr>`).join('');
+    } catch (err) {
+      tbody.innerHTML = `<tr><td colspan="8" style="color:var(--red);padding:1rem">${escHtml(err.message)}</td></tr>`;
+    }
+  }
+
+  async function filterTickets(val) {
+    await loadTicketsTable(val);
+  }
+
+  async function quickClose(id, btn) {
+    btn.disabled = true;
+    try {
+      await SupaTickets.updateStatus(id, 'closed');
+      const tr = btn.closest('tr');
+      if (tr) {
+        tr.dataset.status = 'closed';
+        const statoTd = tr.querySelector('td[data-col="stato"]');
+        if (statoTd) statoTd.innerHTML = `<span class="sdot sdot-closed"></span>Chiuso`;
+        btn.remove();
+      }
+      showToast('Ticket chiuso.');
+    } catch (err) {
+      showToast('❌ ' + err.message);
+      btn.disabled = false;
+    }
   }
 
   // ── Ticket detail modal ──
   let _chatOpen = false;
 
-  function openTicketDetail(user, plugin, title, status) {
-    const map = { open:'Aperto', wip:'In corso', closed:'Chiuso' };
-    document.getElementById('mt-title').textContent  = 'Ticket — ' + user;
-    document.getElementById('mt-plugin').textContent = plugin;
-    document.getElementById('mt-status').textContent = map[status] || status;
-    document.getElementById('mt-desc').textContent   = `L'utente ${user} ha segnalato: "${title}"`;
-    document.getElementById('cp-title').textContent  = 'Chat live · ' + user;
-    document.getElementById('cp-msgs').innerHTML     =
-      `<div class="cp-msg-user">
-         <div class="cp-bubble">Ciao, ho un problema con ${plugin}...</div>
-         <div class="cp-time">${user} · adesso</div>
-       </div>`;
+  async function openTicketDetail(id) {
+    _currentTicketId = id;
+    document.getElementById('mt-title').textContent   = 'Ticket #' + id;
+    document.getElementById('mt-plugin').textContent  = '...';
+    document.getElementById('mt-status').textContent  = '...';
+    document.getElementById('mt-desc').textContent    = 'Caricamento...';
+    document.getElementById('modal-ticket').classList.add('open');
     _chatOpen = false;
     document.getElementById('chat-panel-wrap').style.display = 'none';
     document.getElementById('chat-toggle-btn').textContent   = 'Abilita Chat';
-    document.getElementById('modal-ticket').classList.add('open');
+
+    try {
+      const ticket   = await SupaTickets.getById(id);
+      const messages = await SupaMessages.getForTicket(id);
+
+      document.getElementById('mt-title').textContent   = `Ticket #${ticket.id} — ${ticket.username}`;
+      document.getElementById('mt-plugin').textContent  = ticket.plugin;
+      document.getElementById('mt-status').textContent  = statusLabel(ticket.status);
+      document.getElementById('mt-desc').textContent    = ticket.description;
+      document.getElementById('cp-title').textContent   = `Chat live · ${ticket.username}`;
+
+      // Carica messaggi nella chat
+      const msgs = document.getElementById('cp-msgs');
+      msgs.innerHTML = messages.map(m => `
+        <div class="cp-msg-${m.sender === 'admin' ? 'admin' : 'user'}">
+          <div class="cp-bubble"></div>
+          <div class="cp-time">${m.sender_name} · ${timeAgo(m.created_at)}</div>
+        </div>`).join('');
+      // Testo sanitizzato via textContent
+      msgs.querySelectorAll('.cp-bubble').forEach((el, i) => {
+        el.textContent = messages[i].body;
+      });
+      msgs.scrollTop = msgs.scrollHeight;
+
+    } catch (err) {
+      document.getElementById('mt-desc').textContent = 'Errore: ' + err.message;
+    }
   }
 
   function toggleChat() {
     _chatOpen = !_chatOpen;
     document.getElementById('chat-panel-wrap').style.display = _chatOpen ? 'block' : 'none';
     document.getElementById('chat-toggle-btn').textContent   = _chatOpen ? 'Disabilita Chat' : 'Abilita Chat';
+
+    if (_chatOpen && _currentTicketId) {
+      // Attiva realtime sulla chat di questo ticket
+      if (_chatChannel) SupaMessages.unsubscribe(_chatChannel);
+      _chatChannel = SupaMessages.subscribe(_currentTicketId, msg => {
+        if (msg.sender !== 'admin') appendChatMsg(msg);
+      });
+    }
   }
 
-  function sendTicketReply() {
-    const v = document.getElementById('mt-reply').value.trim();
-    if (!v) return;
-    document.getElementById('mt-reply').value = '';
-    showToast('✓ Risposta inviata all\'utente!');
-  }
-
-  function changeTicketStatus(st) {
-    const map = { open:'Aperto', wip:'In corso', closed:'Chiuso' };
-    document.getElementById('mt-status').textContent = map[st];
-    showToast('Ticket segnato come: ' + map[st]);
-  }
-
-  function sendChatMsg() {
-    const inp = document.getElementById('cp-inp');
-    const txt = inp.value.trim();
-    if (!txt) return;
+  function appendChatMsg(msg) {
     const m   = document.getElementById('cp-msgs');
-    const now = new Date().toLocaleTimeString('it', { hour: '2-digit', minute: '2-digit' });
-    // FIX: sanitizza il testo prima di inserirlo nel DOM
     const div = document.createElement('div');
-    div.className = 'cp-msg-admin';
-    div.innerHTML = `<div class="cp-bubble"></div><div class="cp-time">admin · ${now}</div>`;
-    div.querySelector('.cp-bubble').textContent = txt;
+    div.className = `cp-msg-${msg.sender === 'admin' ? 'admin' : 'user'}`;
+    const bubble = document.createElement('div');
+    bubble.className   = 'cp-bubble';
+    bubble.textContent = msg.body;
+    const time = document.createElement('div');
+    time.className   = 'cp-time';
+    time.textContent = `${msg.sender_name} · adesso`;
+    div.appendChild(bubble);
+    div.appendChild(time);
     m.appendChild(div);
-    inp.value = '';
     m.scrollTop = m.scrollHeight;
   }
 
-  // ── Bar charts ──
+  async function sendTicketReply() {
+    const v = document.getElementById('mt-reply').value.trim();
+    if (!v || !_currentTicketId) return;
+    try {
+      await SupaMessages.send(_currentTicketId, {
+        sender:     'admin',
+        senderName: 'Admin',
+        body:       v,
+      });
+      document.getElementById('mt-reply').value = '';
+      showToast('✓ Risposta inviata!');
+    } catch (err) {
+      showToast('❌ ' + err.message);
+    }
+  }
+
+  async function changeTicketStatus(st) {
+    if (!_currentTicketId) return;
+    try {
+      await SupaTickets.updateStatus(_currentTicketId, st);
+      document.getElementById('mt-status').textContent = statusLabel(st);
+      showToast('Ticket segnato come: ' + statusLabel(st));
+      loadTicketsTable();
+    } catch (err) {
+      showToast('❌ ' + err.message);
+    }
+  }
+
+  async function sendChatMsg() {
+    const inp = document.getElementById('cp-inp');
+    const txt = inp.value.trim();
+    if (!txt || !_currentTicketId) return;
+    inp.value = '';
+    try {
+      const msg = await SupaMessages.send(_currentTicketId, {
+        sender:     'admin',
+        senderName: 'Admin',
+        body:       txt,
+      });
+      appendChatMsg(msg);
+    } catch (err) {
+      showToast('❌ ' + err.message);
+    }
+  }
+
+  // ── Stats ──
+  async function loadStats() {
+    try {
+      const counts = await SupaTickets.getCounts();
+      const total  = counts.open + counts.wip + counts.closed;
+      const rateEl = document.getElementById('adm-stat-resolution');
+      if (rateEl && total > 0)
+        rateEl.textContent = Math.round((counts.closed / total) * 100) + '%';
+    } catch {}
+  }
+
+  // ── Users filter ──
+  function filterUsers(q) {
+    document.querySelectorAll('#users-table tr:not(:first-child)').forEach(r => {
+      r.style.display = r.textContent.toLowerCase().includes(q.toLowerCase()) ? '' : 'none';
+    });
+  }
+
+  // ── Charts ──
   function buildCharts() {
     const weekly  = [2, 4, 1, 3, 5, 1, 2];
     const monthly = [8, 12, 7, 10, 5];
-
     function makeBar(id, data) {
       const el = document.getElementById(id);
       if (!el) return;
@@ -577,16 +774,46 @@ const Admin = (() => {
   }
 
   return {
-    showLogin, showShell, showPublic,
+    showLogin, showPublic,
     doLogin, doLogout,
     aPage, filterTickets, filterUsers,
-    changeStatus, openTicketDetail, toggleChat,
+    openTicketDetail, toggleChat, quickClose,
     sendTicketReply, changeTicketStatus, sendChatMsg,
-    buildCharts, checkRoute,
+    buildCharts, checkRoute, loadDashboard,
   };
 })();
 
-/* ── GLOBAL TOAST ────────────────────────────────────────────────────────── */
+/* ── UTILS ───────────────────────────────────────────────────────────────── */
+function escHtml(str) {
+  return String(str || '')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function timeAgo(dateStr) {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins  = Math.floor(diff / 60000);
+  const hours = Math.floor(diff / 3600000);
+  const days  = Math.floor(diff / 86400000);
+  if (mins  < 1)  return 'adesso';
+  if (mins  < 60) return `${mins} min fa`;
+  if (hours < 24) return `${hours}h fa`;
+  return `${days} giorni fa`;
+}
+
+function statusLabel(s)  { return s === 'open' ? 'Aperto' : s === 'wip' ? 'In corso' : 'Chiuso'; }
+function priorityLabel(p){ return p === 'high' ? 'Alta' : p === 'medium' ? 'Media' : 'Bassa'; }
+function priorityTagClass(p) {
+  return p === 'high' ? '' : p === 'medium' ? 'tag-a' : 'tag-o';
+}
+
+function setLoading(btn, loading, label) {
+  if (!btn) return;
+  btn.disabled      = loading;
+  btn.textContent   = label;
+  btn.style.opacity = loading ? '0.7' : '1';
+}
+
 function showToast(msg) {
   const t = document.getElementById('toast');
   document.getElementById('toast-text').textContent = msg;
@@ -594,45 +821,29 @@ function showToast(msg) {
   setTimeout(() => t.classList.remove('show'), 3200);
 }
 
-/* ── KEYBOARD SHORTCUTS ──────────────────────────────────────────────────── */
+/* ── KEYBOARD ────────────────────────────────────────────────────────────── */
 document.addEventListener('keydown', e => {
   if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-    e.preventDefault();
-    Search.open();
+    e.preventDefault(); Search.open();
   }
   if (e.key === 'Escape') {
-    // FIX: chiude solo il modal più in cima (l'ultimo aperto), non tutti
     const openModals = [...document.querySelectorAll('.modal-bg.open')];
-    if (openModals.length) {
-      openModals[openModals.length - 1].classList.remove('open');
-    } else {
-      Search.close();
-      UserMenu.close();
-    }
+    if (openModals.length) openModals[openModals.length - 1].classList.remove('open');
+    else { Search.close(); UserMenu.close(); }
   }
 });
-
-// Chiudi user menu su click esterno
 document.addEventListener('click', e => {
   const wrap = document.getElementById('user-menu-wrap');
   if (wrap && !wrap.contains(e.target)) UserMenu.close();
 });
-
-// Chiudi search su click sul backdrop
 document.getElementById('search-overlay')?.addEventListener('click', e => {
   if (e.target.id === 'search-overlay') Search.close();
 });
 
 /* ── BOOT ────────────────────────────────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', async () => {
-  Auth.load();
-  Auth.updateNavUser();
-
-  // Carica i plugin (await: tutto dipende da questo)
+  await Auth.load();
   await PluginSystem.init();
-
-  // Ora che i plugin sono caricati, controlla la route
-  // FIX: checkRoute DOPO init() per evitare race condition admin/tabelle
   Admin.checkRoute();
   window.addEventListener('hashchange', Admin.checkRoute);
 });
