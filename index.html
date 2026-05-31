@@ -164,7 +164,7 @@
 
         <div class="form-group">
           <label class="form-label">Versione Minecraft / Paper</label>
-          <input class="form-input" type="text"
+          <input class="form-input" type="text" id="ticket-mc-version"
             placeholder="es. 1.21.4 / Paper build.123"/>
         </div>
 
@@ -322,9 +322,9 @@
     <!-- DASHBOARD -->
     <div class="admin-page active" id="ap-dashboard">
       <div class="a-grid-4">
-        <div class="a-stat"><div class="a-stat-val" style="color:var(--orange)">3</div><div class="a-stat-label">Ticket aperti</div><div class="a-stat-delta delta-dn">+2 oggi</div></div>
-        <div class="a-stat"><div class="a-stat-val" style="color:var(--amber)">1</div><div class="a-stat-label">In lavorazione</div><div class="a-stat-delta" style="color:var(--muted)">invariato</div></div>
-        <div class="a-stat"><div class="a-stat-val" style="color:var(--green)">38</div><div class="a-stat-label">Ticket chiusi</div><div class="a-stat-delta delta-up">+5 questa settimana</div></div>
+        <div class="a-stat"><div class="a-stat-val" style="color:var(--orange)" id="adm-count-open">3</div><div class="a-stat-label">Ticket aperti</div><div class="a-stat-delta delta-dn">+2 oggi</div></div>
+        <div class="a-stat"><div class="a-stat-val" style="color:var(--amber)" id="adm-count-wip">1</div><div class="a-stat-label">In lavorazione</div><div class="a-stat-delta" style="color:var(--muted)">invariato</div></div>
+        <div class="a-stat"><div class="a-stat-val" style="color:var(--green)" id="adm-count-closed">38</div><div class="a-stat-label">Ticket chiusi</div><div class="a-stat-delta delta-up">+5 questa settimana</div></div>
         <div class="a-stat"><div class="a-stat-val" style="color:var(--blue)" id="adm-dl-total">—</div><div class="a-stat-label">Download Modrinth</div><div class="a-stat-delta delta-up">totale plugin</div></div>
       </div>
       <div class="a-row">
@@ -332,7 +332,9 @@
           <div class="a-card-title">Ticket recenti</div>
           <table class="a-table">
             <tr><th>#</th><th>Plugin</th><th>Titolo</th><th>Priorità</th><th>Stato</th><th></th></tr>
-            <tr><td style="color:var(--muted);font-family:var(--mono)">#0043</td><td>ShopEasy</td><td>GUI non si apre</td><td><span class="tag tag-a" style="font-size:10px">Media</span></td><td><span class="sdot sdot-open"></span>Aperto</td><td><button class="a-btn a-btn-orange" onclick="Admin.aPage('tickets',document.querySelectorAll('.admin-tab')[1])">Gestisci</button></td></tr>
+            </table>
+          <table class="a-table"><tbody id="adm-recent-tickets"></tbody>
+            <tr style="display:none"><td style="color:var(--muted);font-family:var(--mono)">#0043</td><td>ShopEasy</td><td>GUI non si apre</td><td><span class="tag tag-a" style="font-size:10px">Media</span></td><td><span class="sdot sdot-open"></span>Aperto</td><td><button class="a-btn a-btn-orange" onclick="Admin.aPage('tickets',document.querySelectorAll('.admin-tab')[1])">Gestisci</button></td></tr>
             <tr><td style="color:var(--muted);font-family:var(--mono)">#0042</td><td>ShopEasy</td><td>Prezzi non aggiornati</td><td><span class="tag tag-a" style="font-size:10px">Media</span></td><td><span class="sdot sdot-open"></span>Aperto</td><td><button class="a-btn a-btn-orange" onclick="Admin.aPage('tickets',document.querySelectorAll('.admin-tab')[1])">Gestisci</button></td></tr>
             <tr><td style="color:var(--muted);font-family:var(--mono)">#0041</td><td>AntiGrief</td><td>Claim non si salva</td><td><span class="tag" style="background:var(--red-dim);color:var(--red);font-size:10px">Alta</span></td><td><span class="sdot sdot-wip"></span>In corso</td><td><button class="a-btn" onclick="Admin.aPage('tickets',document.querySelectorAll('.admin-tab')[1])">Vedi</button></td></tr>
           </table>
@@ -376,6 +378,7 @@
       <div class="a-card" style="padding:0;overflow:hidden">
         <table class="a-table">
           <tr><th>#</th><th>Utente</th><th>Plugin</th><th>Titolo</th><th>Priorità</th><th>Stato</th><th>Aperto</th><th>Azioni</th></tr>
+          <tbody id="adm-tickets-tbody">
           <tr data-status="open"><td style="color:var(--muted);font-family:var(--mono)">#0043</td><td>Steve99</td><td>ShopEasy</td><td>GUI non si apre dopo /reload</td><td><span class="tag tag-a" style="font-size:10px">Media</span></td><td data-col="stato"><span class="sdot sdot-open"></span>Aperto</td><td style="color:var(--muted)">1h fa</td><td style="display:flex;gap:6px"><button class="a-btn a-btn-orange" onclick="Admin.openTicketDetail('Steve99','ShopEasy','GUI non si apre dopo /reload','open')">Apri</button><button class="a-btn a-btn-red" onclick="Admin.changeStatus(this,'closed')">Chiudi</button></td></tr>
           <tr data-status="open"><td style="color:var(--muted);font-family:var(--mono)">#0042</td><td>Alex_MC</td><td>ShopEasy</td><td>Prezzi non si aggiornano</td><td><span class="tag tag-a" style="font-size:10px">Media</span></td><td data-col="stato"><span class="sdot sdot-open"></span>Aperto</td><td style="color:var(--muted)">2h fa</td><td style="display:flex;gap:6px"><button class="a-btn a-btn-orange" onclick="Admin.openTicketDetail('Alex_MC','ShopEasy','Prezzi non si aggiornano','open')">Apri</button><button class="a-btn a-btn-red" onclick="Admin.changeStatus(this,'closed')">Chiudi</button></td></tr>
           <tr data-status="wip"><td style="color:var(--muted);font-family:var(--mono)">#0041</td><td>Notch_jr</td><td>AntiGrief</td><td>Claim non si salva al restart</td><td><span class="tag" style="background:var(--red-dim);color:var(--red);font-size:10px">Alta</span></td><td data-col="stato"><span class="sdot sdot-wip"></span>In corso</td><td style="color:var(--muted)">ieri</td><td style="display:flex;gap:6px"><button class="a-btn a-btn-orange" onclick="Admin.openTicketDetail('Notch_jr','AntiGrief','Claim non si salva al restart','wip')">Apri</button><button class="a-btn a-btn-red" onclick="Admin.changeStatus(this,'closed')">Chiudi</button></td></tr>
@@ -421,7 +424,7 @@
       <div style="margin-bottom:1.25rem"><span class="section-title">// Statistiche</span></div>
       <div class="a-grid-4">
         <div class="a-stat"><div class="a-stat-val" style="color:var(--orange)">42</div><div class="a-stat-label">Ticket totali</div><div class="a-stat-delta delta-up">+12 questo mese</div></div>
-        <div class="a-stat"><div class="a-stat-val" style="color:var(--green)">90%</div><div class="a-stat-label">Tasso risoluzione</div><div class="a-stat-delta delta-up">+2% vs mese scorso</div></div>
+        <div class="a-stat"><div class="a-stat-val" style="color:var(--green)" id="adm-stat-resolution">90%</div><div class="a-stat-label">Tasso risoluzione</div><div class="a-stat-delta delta-up">+2% vs mese scorso</div></div>
         <div class="a-stat"><div class="a-stat-val" style="color:var(--blue)">3.2h</div><div class="a-stat-label">Risposta media</div><div class="a-stat-delta delta-up">-0.8h migliorato</div></div>
         <div class="a-stat"><div class="a-stat-val" style="color:var(--purple)" id="stats-dl-val">—</div><div class="a-stat-label">Download Modrinth</div><div class="a-stat-delta delta-up">tutti i plugin</div></div>
       </div>
@@ -628,6 +631,8 @@
 </div>
 
 <!-- ══ SCRIPTS ══ -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="js/supabase.js"></script>
 <script src="js/plugins.js"></script>
 <script src="js/app.js"></script>
 <script>
